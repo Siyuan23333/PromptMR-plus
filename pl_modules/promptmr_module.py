@@ -185,6 +185,12 @@ class PromptMrModule(MriModule):
             raise ValueError(f'nan loss on {batch.fname} of slice {batch.slice_num}')
         return loss
 
+    def on_after_backward(self, trainer, pl_module):
+        # Compute total grad norm (L2)
+        grad_norm = torch.nn.utils.get_total_norm(
+            [p.grad for p in self.model.parameters() if p.grad is not None]
+        )
+        self.log("grad_norm", grad_norm)
 
     def validation_step(self, batch, batch_idx):
 
@@ -200,15 +206,16 @@ class PromptMrModule(MriModule):
                 output.unsqueeze(1), target.unsqueeze(1), data_range=batch.max_value
             )
         cc = batch.masked_kspace.shape[1]
-        centered_coil_visual = torch.log(1e-10+torch.view_as_complex(batch.masked_kspace[:,cc//2]).abs())
+        centered_coil_ksp_visual = torch.log10(1e-10+torch.view_as_complex(batch.masked_kspace[:,cc//2]).abs())
+        centered_sens_maps_visual = output_dict['sens_maps'][:,cc//self.num_adj_slices//2].abs()
         return {
             "batch_idx": batch_idx,
             "fname": batch.fname,
             "slice_num": batch.slice_num,
             "max_value": batch.max_value,
             "img_zf":   img_zf,
-            "mask": centered_coil_visual, 
-            "sens_maps": output_dict['sens_maps'][:,0].abs(),
+            "mask": centered_coil_ksp_visual, 
+            "sens_maps": centered_sens_maps_visual,
             "output": output,
             "target": target,
             "loss": val_loss,

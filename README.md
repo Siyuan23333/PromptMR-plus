@@ -95,9 +95,18 @@ We provide the **model weights** and **reconstruction results** for PromptMR/Pro
 </table>
 </details>
 
-## Install
+## Quick Start
 
-python>=3.8.16, torch>=2.3, lightning>=2.2.4, wandb>=0.17.0
+```bash
+pip install uv
+uv venv
+source .venv/bin/activate
+uv pip install -r requirements.txt
+```
+Then run the demo script:
+```bash
+python demo_model.py
+```
 
 ## Data Preparation
 

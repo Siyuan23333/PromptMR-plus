@@ -16,7 +16,12 @@ from torchmetrics.metric import Metric
 
 from mri_utils import utils, save_reconstructions
 
-
+def to_wandb_img(img):
+    img = img.cpu().numpy()
+    img = np.squeeze(img)
+    img = np.clip(img, 0, 1)
+    img = (img * 255).astype(np.uint8)
+    return img
 class DistributedMetricSum(Metric):
     def __init__(self, dist_sync_on_step=True):
         super().__init__(dist_sync_on_step=dist_sync_on_step)
@@ -50,14 +55,16 @@ class MriModule(L.LightningModule):
     Other methods from LightningModule can be overridden as needed.
     """
 
-    def __init__(self, num_log_images: int = 16):
+    def __init__(self, num_log_images: int = 16, img_alpha: float = 0.5):
         """
         Args:
             num_log_images: Number of images to log. Defaults to 16.
+            img_alpha: Alpha blending factor for logging images. Defaults to 0.5.
         """
         super().__init__()
 
         self.num_log_images = num_log_images
+        self.img_alpha = img_alpha
         self.val_log_indices = None
         # self.training_step_outputs = []
         self.validation_step_outputs = []
@@ -80,7 +87,6 @@ class MriModule(L.LightningModule):
 
     # def validation_step_end(self, val_logs):
     def on_validation_batch_end(self, val_logs, batch, batch_idx, dataloader_idx=0):
-        # print('ddddddddddddddddddddddd............')
         # check inputs
         for k in (
             "batch_idx",
@@ -98,7 +104,6 @@ class MriModule(L.LightningModule):
                 raise RuntimeError(
                     f"Expected key {k} in dict returned by validation_step."
                 )
-        # print('debug !!!!!!!!!!!!!!:', val_logs["output"].shape, val_logs["img_zf"].shape, val_logs["target"].shape)  
         if val_logs["output"].ndim == 2:
             val_logs["output"] = val_logs["output"].unsqueeze(0)
         elif val_logs["output"].ndim != 3:
@@ -119,49 +124,37 @@ class MriModule(L.LightningModule):
                 )
             else:
                 num_val_batches = int(limit_val_batches)
-            # print('debug: num_val_batches:', num_val_batches)
             # Randomly sample indices
             self.val_log_indices = list(
                 np.random.permutation(num_val_batches)[: self.num_log_images]
             )
-            # print('debug: self.val_log_indices:', self.val_log_indices)
-        # print('debug idx: ', val_logs["batch_idx"], batch_idx)
-        # log images to tensorboard
+        # log images to wandb
         if isinstance(val_logs["batch_idx"], int):
             batch_indices = [val_logs["batch_idx"]]
         else:
             batch_indices = val_logs["batch_idx"]
-        # print('......................', batch_indices)
         for i, batch_idx in enumerate(batch_indices):
-            # print('......................', batch_idx, val_logs["target"].shape, val_logs["mask"].shape, val_logs["sens_maps"].shape)
             if batch_idx in self.val_log_indices:
                 key = f"val_images_idx_{batch_idx}" #_{self.global_rank}"
                 mask = val_logs["mask"][i].unsqueeze(0)
                 target = val_logs["target"][i].unsqueeze(0)
                 output = val_logs["output"][i].unsqueeze(0)
                 img_zf = val_logs["img_zf"][i].unsqueeze(0)
-                # print('debug sens on end_val: ', val_logs["sens_maps"].shape)
                 sens_maps = val_logs["sens_maps"][i].unsqueeze(0)
                 error = torch.abs(target - output)
 
-                # mask = mask / mask.max() # looks betetr if not normalized
+                mask = (mask-mask.min()) / (mask.max()-mask.min())
                 img_zf = img_zf / img_zf.max()
                 sens_maps = sens_maps / sens_maps.max()
                 
                 output = output / output.max()
                 target = target / target.max()
                 error = error / error.max()
-                # print('debug: ', target.shape, output.shape, error.shape)
-                # self.log_image(f"{key}/target", [target]) #.cpu().numpy().transpose(1,2,0)])
-                # self.log_image(f"{key}/reconstruction", [output])#.cpu().numpy().transpose(1,2,0)])
-                # self.log_image(f"{key}/error", [error]) #.cpu().numpy().transpose(1,2,0)])
-                ##* adjust contrast, make it bright
-                ##* add mask display
-                # print('debug: ', mask.shape, target.shape, output.shape, error.shape)
-                alpha = 0.2
-                self.log_image(key, [ mask, sens_maps, img_zf**alpha,output**alpha, target**alpha,error], captions=[ 'mask','sens_maps','zf', 'reconstruction', 'target','error']) #.cpu().numpy().transpose(1,2,0)])
 
-                # print('debug: ', len(self.validation_step_outputs), target.device, target.shape)
+                ##* adjust contrast, make it bright
+                images = [ img_zf**self.img_alpha,output**self.img_alpha, target**self.img_alpha,error, mask, sens_maps]
+                images = [to_wandb_img(img) for img in images]
+                self.log_image(key, images, captions=[ 'zf', 'reconstruction', 'target','error','mask','sens_maps'])
 
         # compute evaluation metrics
         mse_vals = defaultdict(dict)
@@ -192,13 +185,7 @@ class MriModule(L.LightningModule):
             "max_vals": max_vals,
         }
         self.validation_step_outputs.append(val_step_out_dict)
-        # return {
-        #     "val_loss": val_logs["loss"],
-        #     "mse_vals": dict(mse_vals),
-        #     "target_norms": dict(target_norms),
-        #     "ssim_vals": dict(ssim_vals),
-        #     "max_vals": max_vals,
-        # }
+
 
     def log_image(self, key, images, captions):
         # tensorboard
@@ -220,16 +207,8 @@ class MriModule(L.LightningModule):
         target_norms = defaultdict(dict)
         ssim_vals = defaultdict(dict)
         max_vals = dict()
-        # print('debug len: ', len(self.validation_step_outputs))
-        # print('debug: val_loss tensor:', self.validation_step_outputs)   
         # use dict updates to handle duplicate slices
         for val_log in self.validation_step_outputs:
-            # print('debug len: ', len(val_log))
-            # print('debug: val_loss tensor:', val_log)
-            # print('debug: val_loss tensor:', val_log["val_loss"])
-            # print('debug: Type of val_loss:', type(val_log["val_loss"]))
-            # print('debug: Shape of val_loss:', val_log["val_loss"].shape)
-
             losses.append(val_log["val_loss"].view(-1))
 
             for k in val_log["mse_vals"].keys():
@@ -240,7 +219,6 @@ class MriModule(L.LightningModule):
                 ssim_vals[k].update(val_log["ssim_vals"][k])
             for k in val_log["max_vals"]:
                 max_vals[k] = val_log["max_vals"][k]
-        # print('debug val len: ', len(losses))
         # check to make sure we have all files in all metrics
         assert (
             mse_vals.keys()
@@ -254,7 +232,6 @@ class MriModule(L.LightningModule):
         local_examples = 0
         for fname in mse_vals.keys():
             local_examples = local_examples + 1
-            # print('debug fname: ', torch.cat([v.view(-1) for _, v in mse_vals[fname].items()]).shape, fname)
             mse_val = torch.mean(
                 torch.cat([v.view(-1) for _, v in mse_vals[fname].items()])
             )
@@ -290,7 +267,6 @@ class MriModule(L.LightningModule):
         for metric, value in metrics.items():
             self.log(f"val_metrics/{metric}", value / tot_examples) #,sync_dist=True)
 
-        # print('debug epoch end: ', len(self.validation_step_outputs), metrics["ssim"]/tot_examples, tot_examples)
         self.validation_step_outputs.clear()
 
 

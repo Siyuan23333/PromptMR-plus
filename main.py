@@ -174,12 +174,39 @@ class CustomWriter(BasePredictionWriter):
         save_reconstructions(outputs, num_slc_dict, self.output_dir / "reconstructions")
         print(f"Done! Reconstructions saved to {self.output_dir / 'reconstructions'}")
 
+def get_model_init_arg_overrides():
+    """Returns a dict of model.init_args overrides set on the CLI only."""
+    overrides = {}
+    prefix = "--model.init_args."
+    argv = sys.argv
+    for i, arg in enumerate(argv):
+        if arg.startswith(prefix):
+            key = arg[len(prefix):]
+            if i + 1 < len(argv):
+                value = argv[i + 1]
+                # Basic type conversion
+                if value.lower() == "true":
+                    value = True
+                elif value.lower() == "false":
+                    value = False
+                elif value.isdigit():
+                    value = int(value)
+                else:
+                    try:
+                        value = float(value)
+                    except ValueError:
+                        pass
+                overrides[key] = value
+    return overrides
+
 class CustomLightningCLI(LightningCLI):
 
     def instantiate_classes(self):
         super().instantiate_classes()
         if self.config_init.subcommand == 'predict':
-            self.model = PromptMrModule.load_from_checkpoint(self.config_init.predict.ckpt_path)
+            model_class = self.config_init.predict.model.__class__
+            init_args = get_model_init_arg_overrides()
+            self.model = model_class.load_from_checkpoint(self.config_init.predict.ckpt_path, **init_args)
 
 
 def run_cli():

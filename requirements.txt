@@ -1,0 +1,8 @@
+torch>=2.3
+lightning>=2.2
+wandb>=0.17
+h5py
+scikit-image
+runstats
+jsonargparse[signatures]>=4.27.7
+einops
