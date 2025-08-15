@@ -48,14 +48,18 @@ if __name__ == "__main__":
     model_promptmr.to(device)
     model_promptmr_plus.to(device)
 
-    #* use random input
+    # Use random input for demo
     rand_input = torch.randn(1, n_adj_slc*n_coil, 218, 170, 2)
     rand_mask = torch.randn(1, 1, 218, 170, 1).bool()
     num_low_frequencies = torch.tensor([18])
 
+    rand_input = rand_input.to(device)
+    rand_mask = rand_mask.to(device)
+    num_low_frequencies = num_low_frequencies.to(device)
+
     with torch.no_grad():
-        output = model_promptmr(rand_input.to(device), rand_mask.to(device), num_low_frequencies.to(device))
-        output_plus = model_promptmr_plus(rand_input.to(device), rand_mask.to(device), num_low_frequencies.to(device))
+        output = model_promptmr(rand_input, rand_mask, num_low_frequencies)
+        output_plus = model_promptmr_plus(rand_input, rand_mask, num_low_frequencies)
 
     print('model_promptmr param: ', count_parameters(model_promptmr))
     print('model_promptmr+ param: ', count_parameters(model_promptmr_plus))
