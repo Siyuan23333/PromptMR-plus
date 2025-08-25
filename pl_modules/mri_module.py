@@ -55,16 +55,16 @@ class MriModule(L.LightningModule):
     Other methods from LightningModule can be overridden as needed.
     """
 
-    def __init__(self, num_log_images: int = 16, img_alpha: float = 0.5):
+    def __init__(self, num_log_images: int = 16, gamma: float = 0.5):
         """
         Args:
             num_log_images: Number of images to log. Defaults to 16.
-            img_alpha: Alpha blending factor for logging images. Defaults to 0.5.
+            gamma: Gamma correction factor for logging images. Defaults to 0.5.
         """
         super().__init__()
 
         self.num_log_images = num_log_images
-        self.img_alpha = img_alpha
+        self.gamma = gamma
         self.val_log_indices = None
         # self.training_step_outputs = []
         self.validation_step_outputs = []
@@ -120,7 +120,7 @@ class MriModule(L.LightningModule):
             if isinstance(limit_val_batches, float) and limit_val_batches <= 1.0:
                 num_val_batches = int(
                     limit_val_batches
-                    * len(self.trainer.val_dataloaders) #.dataset)
+                    * len(self.trainer.val_dataloaders)
                 )
             else:
                 num_val_batches = int(limit_val_batches)
@@ -135,7 +135,7 @@ class MriModule(L.LightningModule):
             batch_indices = val_logs["batch_idx"]
         for i, batch_idx in enumerate(batch_indices):
             if batch_idx in self.val_log_indices:
-                key = f"val_images_idx_{batch_idx}" #_{self.global_rank}"
+                key = f"val_images_idx_{batch_idx}"
                 mask = val_logs["mask"][i].unsqueeze(0)
                 target = val_logs["target"][i].unsqueeze(0)
                 output = val_logs["output"][i].unsqueeze(0)
@@ -151,8 +151,8 @@ class MriModule(L.LightningModule):
                 target = target / target.max()
                 error = error / error.max()
 
-                ##* adjust contrast, make it bright
-                images = [ img_zf**self.img_alpha,output**self.img_alpha, target**self.img_alpha,error, mask, sens_maps]
+                ##* gamma correction for visualization
+                images = [ img_zf**self.gamma, output**self.gamma, target**self.gamma, error, mask, sens_maps]
                 images = [to_wandb_img(img) for img in images]
                 self.log_image(key, images, captions=[ 'zf', 'reconstruction', 'target','error','mask','sens_maps'])
 

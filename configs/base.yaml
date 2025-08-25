@@ -32,3 +32,4 @@ model:
   class_path: pl_modules.PromptMrModule
   init_args:
     num_log_images: 16 # number of images to log in validation step
+    gamma: 0.5 # gamma correction factor for logging images

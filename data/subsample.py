@@ -662,7 +662,7 @@ class CmrxRecon24MaskFunc(MaskFunc):
             seed: Seed for starting the internal random number generator of the
                 ``MaskFunc``.
         """
-
+        self.num_low_frequencies = num_low_frequencies
         self.uniform_mask = FixedLowEquiSpacedMaskFunc(num_low_frequencies, [4,8,10], allow_any_combination=True, seed=seed )
         self.kt_uniform_mask = FixedLowEquiSpacedMaskFunc(num_low_frequencies, [4,8,12,16,20,24], allow_any_combination=True, seed=seed )
         self.kt_random_mask = FixedLowRandomMaskFunc(num_low_frequencies, [4,8,12,16,20,24], allow_any_combination=True, seed=seed )
@@ -721,23 +721,23 @@ class CmrxRecon24MaskFunc(MaskFunc):
     def sample_mask(self,mask_type, shape,offset=None,  slice_idx=None,num_t=None,num_slc=None):
         
         if mask_type=='uniform':
-            mask, num_low_frequencies = self.uniform_mask.sample_uniform_mask(shape, offset, self.rng) #, self.seed)
+            mask, num_low_frequencies = self.uniform_mask.sample_uniform_mask(shape, offset, self.rng)
         elif mask_type=='kt_uniform':
             mask, num_low_frequencies = self.kt_uniform_mask.sample_kt_mask(shape, offset, self.num_adj_slices, slice_idx, num_t,num_slc, self.rng, self.seed)
         elif mask_type=='kt_random':
             mask, num_low_frequencies = self.kt_random_mask.sample_kt_mask(shape, offset, self.num_adj_slices, slice_idx, num_t,num_slc, self.rng)
         elif mask_type=='kt_radial':
             ##TODO: codes below need to be wrapped in a MaskFunc as other mask types
-            h,w = shape[-3:-1] # (h,w)
+            h,w = shape[-3:-1]
             acc = self.rng.choice(self.mask_dict[mask_type])
-            num_low_frequencies = 16
+            num_low_frequencies = self.rng.choice(self.num_low_frequencies)
             mask_ = self.radial_mask_bank[f'acc{acc}_{w}x{h}'][:num_t]
 
             if self.seed is None: ##* training
                 ti = self.rng.randint(num_t)
             else: ##* validation
                 ##* slice_idx is of range(num_t*num_slc)
-                ti = slice_idx//num_slc #self.rng.randint(num_t)
+                ti = slice_idx//num_slc
             select_list = self._get_ti_adj_idx_list(ti,num_t)
             
             mask = mask_[select_list]

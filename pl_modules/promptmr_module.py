@@ -185,12 +185,12 @@ class PromptMrModule(MriModule):
             raise ValueError(f'nan loss on {batch.fname} of slice {batch.slice_num}')
         return loss
 
-    def on_after_backward(self, trainer, pl_module):
-        # Compute total grad norm (L2)
-        grad_norm = torch.nn.utils.get_total_norm(
-            [p.grad for p in self.model.parameters() if p.grad is not None]
-        )
-        self.log("grad_norm", grad_norm)
+    def on_after_backward(self):
+        if self.global_step % self.trainer.log_every_n_steps ==0:
+            grad_norm = torch.nn.utils.get_total_norm(
+                [p.grad for p in self.promptmr.parameters() if p.grad is not None]
+            )
+            self.log("grad_norm", grad_norm)
 
     def validation_step(self, batch, batch_idx):
 

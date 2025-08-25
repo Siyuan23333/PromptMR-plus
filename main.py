@@ -12,11 +12,15 @@ import torch
 import numpy as np
 
 from lightning.pytorch.cli import LightningCLI, SaveConfigCallback
-from lightning.pytorch.callbacks import BasePredictionWriter
+from lightning.pytorch.callbacks import BasePredictionWriter, Callback
 
 from mri_utils import save_reconstructions
 from pl_modules import PromptMrModule
 
+from lightning.pytorch.utilities.rank_zero import rank_zero_only
+@rank_zero_only
+def print_on_rank0(*args, **kwargs):
+    print(*args, **kwargs)
 
 def preprocess_save_dir():
     """Ensure `save_dir` exists, handling both command-line arguments and YAML configuration."""
@@ -61,7 +65,62 @@ def preprocess_save_dir():
         os.makedirs(save_dir, exist_ok=True)
         print(f"Pre-created logger save_dir: {save_dir}")
 
+class ChangeLRStepSizeCallback(Callback):
+    """
+    Change the step size and gamma in lr_schedulers during training.
+    """
+    def __init__(self, step_size=None, lr_gamma=None):
+        self.step_size = step_size
+        self.lr_gamma = lr_gamma
 
+    def on_train_start(self, trainer, pl_module):
+        if self.step_size is not None:
+            lr_before = pl_module.lr_schedulers().get_last_lr()
+            step_size_before = pl_module.lr_schedulers().step_size
+            lr_gamma_before = pl_module.lr_schedulers().gamma
+
+            pl_module.lr_schedulers().step_size = self.step_size
+            if self.lr_gamma is not None:
+                pl_module.lr_schedulers().gamma = self.lr_gamma
+
+            pl_module.lr_schedulers().last_epoch = pl_module.current_epoch-1
+            pl_module.lr_schedulers().step()
+
+            lr_after = pl_module.lr_schedulers().get_last_lr()
+            step_size_after = pl_module.lr_schedulers().step_size
+            lr_gamma_after = pl_module.lr_schedulers().gamma
+
+            print_on_rank0(f'ChangeLRStepSizeCallback: step_size before: {step_size_before}, step_size after: {step_size_after}')
+            print_on_rank0(f'ChangeLRStepSizeCallback: lr_gamma before: {lr_gamma_before}, lr_gamma after: {lr_gamma_after}')
+            print_on_rank0(f'ChangeLRStepSizeCallback: lr before: {lr_before}, lr after: {lr_after}')
+
+class SkipCurrentEpochOnResume(Callback):
+    """
+    If resuming mid-epoch, skip all remaining batches so we start the NEXT epoch.
+    """
+    def __init__(self, only_if_resumed=True, trigger_if_batch_ge=0, verbose=True):
+        self.only_if_resumed = only_if_resumed
+        self.trigger_if_batch_ge = trigger_if_batch_ge
+        self.verbose = verbose
+        self._loaded_from_ckpt = False
+        self._done = False
+
+    def on_load_checkpoint(self, trainer, pl_module, checkpoint):
+        # Called when actually resuming from a checkpoint
+        self._loaded_from_ckpt = True
+
+    def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
+        if self._done:
+            return
+        if self.only_if_resumed and not self._loaded_from_ckpt:
+            return
+        if batch_idx >= self.trigger_if_batch_ge:
+            self._done = True
+            if self.verbose:
+                print(f"[SKIP] Ending epoch {trainer.current_epoch} at batch {batch_idx} -> starting next epoch.")
+            # Force exit from current epoch's batch loop
+            raise StopIteration
+        
 class CustomSaveConfigCallback(SaveConfigCallback):
     '''save the config file to the logger's run directory, merge tags from different configs'''
 
