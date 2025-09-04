@@ -371,7 +371,7 @@ class PromptMR(nn.Module):
             if self.n_buffer>0 and not is_last:
                 ffx =  sens_reduce( torch.where(mask, kspace_pred, zero), sens_maps, self.num_adj_slices)
                 # adaptive input. buffer: A^H*A*x_i, s_i, x0, A^H*A*x_i-x0
-                buffer = torch.cat([ffx, latent, img_zf]+[ffx-img_zf]*(self.n_buffer-3), dim=1)
+                buffer = torch.cat([ffx] + [latent]*(self.n_buffer-3) + [img_zf, ffx-img_zf], dim=1)
                 
         # get central slice of rss as final output
         kspace_pred = torch.chunk(kspace_pred, self.num_adj_slices, dim=1)[self.center_slice]
