@@ -140,11 +140,22 @@ Non-Commercial Research [License](LICENSE.md).
 ## Citation
 
 ```bibtex
+# main
 @inproceedings{xin2024rethinking,
   title={Rethinking Deep Unrolled Model for Accelerated MRI Reconstruction},
   author={Xin, Bingyu and Ye, Meng and Axel, Leon and Metaxas, Dimitris N},
   booktitle={European Conference on Computer Vision},
   pages={164--181},
+  year={2024},
+  organization={Springer}
+}
+
+# CMRxRecon2024
+@inproceedings{xin2024enhanced,
+  title={Enhanced Deep Unrolled Models Applied to the CMRxRecon2024 Challenge},
+  author={Xin, Bingyu and Ye, Meng and Axel, Leon and Metaxas, Dimitris N},
+  booktitle={International Workshop on Statistical Atlases and Computational Models of the Heart},
+  pages={289--300},
   year={2024},
   organization={Springer}
 }
