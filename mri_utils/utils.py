@@ -113,6 +113,30 @@ def save_reconstructions(reconstructions: Dict[str, np.ndarray], num_slc_dict, o
         with h5py.File(file_path, "w") as hf:
             hf.create_dataset("reconstruction", data=recons)
 
+def save_reconstructions_npy(reconstructions: Dict[str, np.ndarray], num_slc_dict, out_dir: Path):
+    """
+    Save reconstruction images as .npy files.
+
+    Args:
+        reconstructions: A dictionary mapping input filenames to corresponding
+            reconstructions.
+        num_slc_dict: Dictionary mapping filenames to number of slices (for reshaping).
+        out_dir: Path to the output directory where the reconstructions should
+            be saved.
+    """
+    out_dir.mkdir(exist_ok=True, parents=True)
+    for fname, recons in reconstructions.items():
+        # Change extension from whatever it is to .npy
+        fname_npy = Path(fname).with_suffix('.npy')
+        file_path = out_dir / fname_npy
+        file_path.parent.mkdir(exist_ok=True, parents=True)
+
+        if fname in num_slc_dict:
+            t_z, h, w = recons.shape
+            recons = recons.reshape(t_z // num_slc_dict[fname], num_slc_dict[fname], h, w)
+        np.save(str(file_path), recons)
+
+
 def loadmat_group(group):
     """
     Load a group in Matlab v7.3 format .mat file using h5py.

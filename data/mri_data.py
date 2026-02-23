@@ -1,6 +1,7 @@
 """
 Dataset classes for fastMRI, Calgary-Campinas, CMRxRecon datasets
 """
+import json
 import logging
 import os
 import pickle
@@ -1027,5 +1028,224 @@ class FastmriSliceDataset(torch.utils.data.Dataset):
         else:
             sample = self.transform(
                 kspace, mask, target, attrs, fname.name, dataslice)
+
+        return sample
+
+
+#########################################################################################################
+# Cine MRI .npy dataset
+#########################################################################################################
+
+class CineNpySliceDataset(torch.utils.data.Dataset):
+    """
+    A PyTorch Dataset for multi-coil cine MRI data stored as .npy files.
+
+    Expects three directories and a split JSON file:
+        - ksp_dir/  : k-space   .npy files with shape [T, C, H, W] (complex)
+        - mask_dir/ : mask      .npy files with shape [T, H, W]
+        - sense_dir/: sensitivity map .npy files with shape [T, C, H, W] (complex)
+        - split_json: JSON file with {"train": ["stem1", ...], "val": ["stem2", ...]}
+
+    Each sample corresponds to a single temporal frame; adjacent temporal frames
+    are concatenated along the coil dimension for context (same pattern as
+    CmrxReconSliceDataset).
+    """
+
+    def __init__(
+        self,
+        root: Union[str, Path, os.PathLike],
+        challenge: str,
+        transform: Optional[Callable] = None,
+        use_dataset_cache: bool = False,
+        sample_rate: Optional[float] = None,
+        volume_sample_rate: Optional[float] = None,
+        dataset_cache_file: Union[str, Path, os.PathLike] = "dataset_cache.pkl",
+        num_cols: Optional[Tuple[int]] = None,
+        raw_sample_filter: Optional[Callable] = None,
+        data_balancer: Optional[Callable] = None,
+        num_adj_slices: int = 5,
+        ksp_dir: str = "ksp",
+        mask_dir: str = "mask",
+        sense_dir: str = "sense",
+        split_json: Optional[str] = None,
+        split: Optional[str] = None,
+    ):
+        """
+        Args:
+            root: Base path containing ksp_dir, mask_dir, sense_dir sub-directories.
+            challenge: "singlecoil" or "multicoil".
+            transform: Optional transform applied to each sample.
+            use_dataset_cache: Whether to cache dataset metadata to pickle.
+            sample_rate: Fraction of slices (temporal frames) to keep.
+            volume_sample_rate: Fraction of volumes (subjects) to keep.
+            dataset_cache_file: Path for the metadata cache file.
+            num_cols: Not used; kept for interface compatibility.
+            raw_sample_filter: Optional filter on RawDataSample.
+            data_balancer: Optional balancer for training set.
+            num_adj_slices: Number of adjacent temporal frames (must be odd).
+            ksp_dir: Name of the k-space sub-directory under root.
+            mask_dir: Name of the mask sub-directory under root.
+            sense_dir: Name of the sensitivity map sub-directory under root.
+            split_json: Path to split JSON. If provided, only files listed under
+                the matching split ("train" or "val") are used.
+            split: Explicit split name ("train", "val", "test"). If None, inferred
+                from root path.
+        """
+        self.root = Path(root)
+        if split is not None:
+            self._split = split
+        elif 'train' in str(root):
+            self._split = 'train'
+        elif 'val' in str(root):
+            self._split = 'val'
+        else:
+            self._split = 'test'
+
+        if challenge not in ("singlecoil", "multicoil"):
+            raise ValueError('challenge should be either "singlecoil" or "multicoil"')
+
+        if sample_rate is not None and volume_sample_rate is not None:
+            raise ValueError(
+                "either set sample_rate (sample by slices) or volume_sample_rate (sample by volumes) but not both"
+            )
+
+        self.transform = transform
+
+        assert num_adj_slices % 2 == 1, "num_adj_slices must be odd"
+        self.num_adj_slices = num_adj_slices
+        self.start_adj = -(num_adj_slices // 2)
+        self.end_adj = num_adj_slices // 2 + 1
+
+        self.ksp_dir = self.root / ksp_dir
+        self.mask_dir = self.root / mask_dir
+        self.sense_dir = self.root / sense_dir
+
+        self.raw_samples: List[RawDataSample] = []
+        if raw_sample_filter is None:
+            self.raw_sample_filter = lambda raw_sample: True
+        else:
+            self.raw_sample_filter = raw_sample_filter
+
+        if sample_rate is None:
+            sample_rate = 1.0
+        if volume_sample_rate is None:
+            volume_sample_rate = 1.0
+
+        self.dataset_cache_file = Path(dataset_cache_file)
+
+        # Determine which files to use
+        if split_json is not None:
+            with open(split_json, 'r') as f:
+                split_data = json.load(f)
+            stems = split_data.get(self._split, [])
+            files = [self.ksp_dir / f"{s}.npy" for s in stems]
+            files = [f for f in files if f.exists()]
+        else:
+            files = sorted(self.ksp_dir.glob("*.npy"))
+
+        # load dataset cache if available
+        if self.dataset_cache_file.exists() and use_dataset_cache:
+            with open(self.dataset_cache_file, "rb") as f:
+                dataset_cache = pickle.load(f)
+        else:
+            dataset_cache = {}
+
+        cache_key = str(self.root) + "_" + self._split
+        if dataset_cache.get(cache_key) is None or not use_dataset_cache:
+            for fname in sorted(files):
+                # Peek at the shape without loading the full array
+                ksp = np.load(str(fname), mmap_mode='r')
+                num_t = ksp.shape[0]  # [T, C, H, W]
+                H, W = ksp.shape[2], ksp.shape[3]
+                metadata = {
+                    'shape': list(ksp.shape),
+                    'encoding_size': [H, W, 1],
+                    'recon_size': [H, W, 1],
+                    'padding_left': 0,
+                    'padding_right': W,
+                    'max': 0.0,
+                }
+                for ti in range(num_t):
+                    raw_sample = RawDataSample(fname, ti, metadata)
+                    if self.raw_sample_filter(raw_sample):
+                        self.raw_samples.append(raw_sample)
+
+            if use_dataset_cache:
+                dataset_cache[cache_key] = self.raw_samples
+                logging.info("Saving dataset cache to %s.", self.dataset_cache_file)
+                with open(self.dataset_cache_file, "wb") as cache_f:
+                    pickle.dump(dataset_cache, cache_f)
+        else:
+            logging.info("Using dataset cache from %s.", self.dataset_cache_file)
+            self.raw_samples = dataset_cache[cache_key]
+
+        if 'train' in str(root) and data_balancer is not None:
+            self.raw_samples = data_balancer(self.raw_samples)
+
+        # subsample if desired
+        if sample_rate < 1.0:
+            random.shuffle(self.raw_samples)
+            num_raw_samples = round(len(self.raw_samples) * sample_rate)
+            self.raw_samples = self.raw_samples[:num_raw_samples]
+        elif volume_sample_rate < 1.0:
+            vol_names = sorted(list(set([f[0].stem for f in self.raw_samples])))
+            random.shuffle(vol_names)
+            num_volumes = round(len(vol_names) * volume_sample_rate)
+            sampled_vols = vol_names[:num_volumes]
+            self.raw_samples = [
+                rs for rs in self.raw_samples if rs[0].stem in sampled_vols
+            ]
+
+        print(f'CineNpySliceDataset [{self._split}]: {len(self.raw_samples)} samples from {len(files)} files')
+
+    def _get_ti_adj_idx_list(self, ti, num_t):
+        """Get circular adjacent indices for the temporal axis."""
+        start_lim = -(num_t // 2)
+        end_lim = num_t // 2 + 1
+        start = max(self.start_adj, start_lim)
+        end = min(self.end_adj, end_lim)
+        ti_idx_list = [(i + ti) % num_t for i in range(start, end)]
+        replication_prefix = max(start_lim - self.start_adj, 0) * ti_idx_list[0:1]
+        replication_suffix = max(self.end_adj - end_lim, 0) * ti_idx_list[-1:]
+        return replication_prefix + ti_idx_list + replication_suffix
+
+    def __len__(self):
+        return len(self.raw_samples)
+
+    def __getitem__(self, i: int):
+        fname, ti, metadata = self.raw_samples[i]
+        stem = fname.stem
+
+        # Load k-space: [T, C, H, W] complex
+        ksp_volume = np.load(str(self.ksp_dir / f"{stem}.npy"))
+        num_t = ksp_volume.shape[0]
+
+        # Load mask: [T, H, W]
+        mask_volume = np.load(str(self.mask_dir / f"{stem}.npy"))
+
+        # Load sensitivity maps: [T, C, H, W] complex
+        sense_volume = np.load(str(self.sense_dir / f"{stem}.npy"))
+
+        # Gather adjacent temporal frames
+        ti_idx_list = self._get_ti_adj_idx_list(ti, num_t)
+
+        kspace = np.concatenate([ksp_volume[idx] for idx in ti_idx_list], axis=0)  # [num_adj*C, H, W]
+        mask = mask_volume[ti]  # [H, W]
+        sens_map = np.concatenate([sense_volume[idx] for idx in ti_idx_list], axis=0)  # [num_adj*C, H, W]
+
+        attrs = {
+            'encoding_size': metadata['encoding_size'],
+            'recon_size': metadata['recon_size'],
+            'padding_left': metadata['padding_left'],
+            'padding_right': metadata['padding_right'],
+            'max': metadata.get('max', 0.0),
+        }
+
+        target = None  # no pre-computed target
+
+        if self.transform is None:
+            sample = (kspace, mask, target, attrs, fname.name, ti, num_t, sens_map)
+        else:
+            sample = self.transform(kspace, mask, target, attrs, fname.name, ti, num_t, sens_map)
 
         return sample

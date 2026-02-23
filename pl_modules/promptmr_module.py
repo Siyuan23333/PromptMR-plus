@@ -165,12 +165,25 @@ class PromptMrModule(MriModule):
         )
         return [optim], [scheduler]
     
-    def forward(self, masked_kspace, mask, num_low_frequencies, mask_type="cartesian", use_checkpoint=False, compute_sens_per_coil=False):
-        return self.promptmr(masked_kspace, mask, num_low_frequencies, mask_type, use_checkpoint=use_checkpoint, compute_sens_per_coil=compute_sens_per_coil)   
+    def forward(self, masked_kspace, mask, num_low_frequencies, mask_type="cartesian",
+                use_checkpoint=False, compute_sens_per_coil=False, precomputed_sens_maps=None):
+        return self.promptmr(masked_kspace, mask, num_low_frequencies, mask_type,
+                             use_checkpoint=use_checkpoint, compute_sens_per_coil=compute_sens_per_coil,
+                             precomputed_sens_maps=precomputed_sens_maps)
+
+    def _get_precomputed_sens_maps(self, batch):
+        """Extract pre-computed sensitivity maps from batch if available."""
+        if hasattr(batch, 'sens_maps') and batch.sens_maps is not None:
+            # Check it's not a zero-dim placeholder
+            if batch.sens_maps.dim() > 1:
+                return batch.sens_maps
+        return None
 
     def training_step(self, batch, batch_idx):
+        precomputed_sens_maps = self._get_precomputed_sens_maps(batch)
         output_dict = self(batch.masked_kspace, batch.mask, batch.num_low_frequencies, batch.mask_type,
-                           use_checkpoint=self.use_checkpoint, compute_sens_per_coil=self.compute_sens_per_coil)
+                           use_checkpoint=self.use_checkpoint, compute_sens_per_coil=self.compute_sens_per_coil,
+                           precomputed_sens_maps=precomputed_sens_maps)
         output = output_dict['img_pred']
         target, output = transforms.center_crop_to_smallest(
             batch.target, output)
@@ -193,9 +206,10 @@ class PromptMrModule(MriModule):
             self.log("grad_norm", grad_norm)
 
     def validation_step(self, batch, batch_idx):
-
+        precomputed_sens_maps = self._get_precomputed_sens_maps(batch)
         output_dict = self(batch.masked_kspace, batch.mask, batch.num_low_frequencies, batch.mask_type,
-                           compute_sens_per_coil=self.compute_sens_per_coil)
+                           compute_sens_per_coil=self.compute_sens_per_coil,
+                           precomputed_sens_maps=precomputed_sens_maps)
         output = output_dict['img_pred']
         img_zf = output_dict['img_zf']
         target, output = transforms.center_crop_to_smallest(
@@ -214,7 +228,7 @@ class PromptMrModule(MriModule):
             "slice_num": batch.slice_num,
             "max_value": batch.max_value,
             "img_zf":   img_zf,
-            "mask": centered_coil_ksp_visual, 
+            "mask": centered_coil_ksp_visual,
             "sens_maps": centered_sens_maps_visual,
             "output": output,
             "target": target,
@@ -222,11 +236,13 @@ class PromptMrModule(MriModule):
         }
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        precomputed_sens_maps = self._get_precomputed_sens_maps(batch)
         output_dict = self(batch.masked_kspace, batch.mask, batch.num_low_frequencies, batch.mask_type,
-                           compute_sens_per_coil=self.compute_sens_per_coil)
+                           compute_sens_per_coil=self.compute_sens_per_coil,
+                           precomputed_sens_maps=precomputed_sens_maps)
         output = output_dict['img_pred']
 
-        crop_size = batch.crop_size 
+        crop_size = batch.crop_size
         crop_size = [crop_size[0][0], crop_size[1][0]] # if batch_size>1
         # detect FLAIR 203
         if output.shape[-1] < crop_size[1]:
@@ -235,8 +251,8 @@ class PromptMrModule(MriModule):
 
         num_slc = batch.num_slc
         return {
-            'output': output.cpu(), 
-            'slice_num': batch.slice_num, 
+            'output': output.cpu(),
+            'slice_num': batch.slice_num,
             'fname': batch.fname,
             'num_slc':  num_slc
         }

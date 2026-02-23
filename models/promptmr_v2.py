@@ -345,6 +345,7 @@ class PromptMR(nn.Module):
         mask_type: Tuple[str] = ("cartesian",),
         use_checkpoint: bool = False,
         compute_sens_per_coil: bool = False, # can further reduce the memory usage
+        precomputed_sens_maps: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         '''
         Args:
@@ -354,9 +355,13 @@ class PromptMR(nn.Module):
             mask_type: (str) mask type
             use_checkpoint: (bool) whether to use checkpoint for memory saving
             compute_sens_per_coil: (bool) whether to compute sensitivity maps per coil for memory saving
+            precomputed_sens_maps: (bs, nc, h, w, 2) optional pre-computed sensitivity maps;
+                if provided, skip internal sensitivity map estimation
         '''
 
-        if use_checkpoint:  # and self.training:
+        if precomputed_sens_maps is not None:
+            sens_maps = precomputed_sens_maps
+        elif use_checkpoint:
             sens_maps = torch.utils.checkpoint.checkpoint(
                  self.sens_net, masked_kspace, mask, num_low_frequencies, mask_type, compute_sens_per_coil,
                 use_reentrant=False)
@@ -379,7 +384,7 @@ class PromptMR(nn.Module):
         img_pred = torch.chunk(img_pred, self.num_adj_slices, dim=1)[self.center_slice]
         sens_maps = torch.chunk(sens_maps, self.num_adj_slices, dim=1)[self.center_slice]
         img_pred = rss(complex_abs(complex_mul(img_pred, sens_maps)), dim=1)
-            
+
         # prepare for additional output
         img_zf = torch.chunk(masked_kspace, self.num_adj_slices, dim=1)[self.center_slice]
         img_zf = rss(complex_abs(ifft2c(img_zf)), dim=1)

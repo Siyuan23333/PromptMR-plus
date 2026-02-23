@@ -16,7 +16,7 @@ from lightning.pytorch.cli import LightningCLI, SaveConfigCallback
 from lightning.pytorch.callbacks import BasePredictionWriter, Callback
 from lightning.pytorch.utilities.rank_zero import rank_zero_only
 
-from mri_utils import save_reconstructions
+from mri_utils import save_reconstructions, save_reconstructions_npy
 
 @rank_zero_only
 def print_on_rank0(*args, **kwargs):
@@ -186,10 +186,11 @@ class CustomWriter(BasePredictionWriter):
     A custom prediction writer to save reconstructions to disk.
     """
 
-    def __init__(self, output_dir: Path, write_interval):
+    def __init__(self, output_dir: Path, write_interval, save_format: str = "h5"):
         super().__init__(write_interval)
         self.output_dir = output_dir
         self.outputs = defaultdict(list)
+        self.save_format = save_format
         
     def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
         """
@@ -229,9 +230,13 @@ class CustomWriter(BasePredictionWriter):
             outputs[fname] = np.concatenate(
                 [out.cpu() for _, out in sorted(outputs[fname])])
     
-        # # Save the reconstructions
-        save_reconstructions(outputs, num_slc_dict, self.output_dir / "reconstructions")
-        print(f"Done! Reconstructions saved to {self.output_dir / 'reconstructions'}")
+        # Save the reconstructions
+        recon_dir = self.output_dir / "reconstructions"
+        if self.save_format == "npy":
+            save_reconstructions_npy(outputs, num_slc_dict, recon_dir)
+        else:
+            save_reconstructions(outputs, num_slc_dict, recon_dir)
+        print(f"Done! Reconstructions saved to {recon_dir}")
 
 def get_model_init_arg_overrides():
     """Returns a dict of model.init_args overrides set on the CLI only."""

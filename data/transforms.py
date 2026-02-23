@@ -264,6 +264,7 @@ class PromptMRSample(NamedTuple):
         mask_type: The type of mask used.
         num_t: number of temporal frames in the original volume. Only used for CmrxRecon data.
         num_slc: number of slices in the original volume. Only used for CmrxRecon data.
+        sens_maps: Pre-computed sensitivity maps. None when estimated by the model.
     """
 
     masked_kspace: torch.Tensor
@@ -277,6 +278,7 @@ class PromptMRSample(NamedTuple):
     mask_type: str
     num_t: int
     num_slc: int
+    sens_maps: Optional[torch.Tensor] = None
     
 class CmrxReconDataTransform:
     """
@@ -639,6 +641,92 @@ class CalgaryCampinasDataTransform:
             mask_type=mask_type,
             num_t = -1,
             num_slc = -1
+        )
+
+        return sample
+
+
+class CineNpyDataTransform:
+    """
+    Data Transformer for cine MRI .npy data with pre-computed sensitivity maps.
+
+    This transform receives k-space, mask, and sensitivity maps from CineNpySliceDataset
+    and packages them into a PromptMRSample. The provided masks are used directly
+    (no on-the-fly mask generation).
+    """
+
+    def __init__(self, mask_type: str = 'cartesian', num_low_frequencies: Optional[int] = None, use_seed: bool = True):
+        """
+        Args:
+            mask_type: Type of undersampling mask (e.g. 'cartesian', 'radial').
+            num_low_frequencies: Number of ACS (auto-calibration signal) lines.
+            use_seed: Kept for interface compatibility.
+        """
+        self.mask_type = mask_type
+        self.num_low_frequencies = num_low_frequencies
+        self.use_seed = use_seed
+        # mask_func is None since we use provided masks
+        self.mask_func = None
+
+    def __call__(
+        self,
+        kspace: np.ndarray,
+        mask: np.ndarray,
+        target: Optional[np.ndarray],
+        attrs: Dict,
+        fname: str,
+        slice_num: int,
+        num_t: int,
+        sens_map: np.ndarray,
+    ) -> PromptMRSample:
+        """
+        Args:
+            kspace: Input k-space of shape (num_adj*C, H, W), complex.
+            mask: Sampling mask of shape (H, W).
+            target: Target image (typically None for cine npy data).
+            attrs: Metadata dictionary.
+            fname: File name.
+            slice_num: Temporal frame index.
+            num_t: Number of temporal frames in the volume.
+            sens_map: Sensitivity maps of shape (num_adj*C, H, W), complex.
+
+        Returns:
+            A PromptMRSample with masked k-space, mask, sensitivity maps, etc.
+        """
+        if target is not None:
+            target_torch = to_tensor(target)
+            max_value = attrs.get("max", 0.0)
+        else:
+            target_torch = torch.tensor(0)
+            max_value = 0.0
+
+        # Convert complex numpy arrays to real-valued tensors with last dim = 2
+        kspace_torch = to_tensor(kspace)       # (num_adj*C, H, W, 2)
+        sens_map_torch = to_tensor(sens_map)   # (num_adj*C, H, W, 2)
+
+        # Mask: (H, W) -> (1, H, W, 1) for broadcasting over (C, H, W, 2)
+        mask_torch = torch.from_numpy(mask.astype(np.float32))
+        if mask_torch.ndim == 2:
+            mask_torch = mask_torch[None, :, :, None]  # (1, H, W, 1)
+
+        # Apply mask to k-space
+        masked_kspace = kspace_torch * mask_torch + 0.0
+
+        crop_size = (attrs["recon_size"][0], attrs["recon_size"][1])
+
+        sample = PromptMRSample(
+            masked_kspace=masked_kspace,
+            mask=mask_torch.to(torch.bool),
+            num_low_frequencies=self.num_low_frequencies,
+            target=target_torch,
+            fname=fname,
+            slice_num=slice_num,
+            max_value=max_value,
+            crop_size=crop_size,
+            mask_type=self.mask_type,
+            num_t=num_t,
+            num_slc=1,
+            sens_maps=sens_map_torch,
         )
 
         return sample

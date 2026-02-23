@@ -10,6 +10,6 @@ from .math import (
     complex_mul,
     tensor_to_complex_np,
 )
-from .utils import save_reconstructions, save_reconstructions_mp
+from .utils import save_reconstructions, save_reconstructions_mp, save_reconstructions_npy
 from .utils import load_mask, load_kdata
 from .utils import mse, psnr, ssim
