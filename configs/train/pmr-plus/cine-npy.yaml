@@ -25,13 +25,15 @@ data:
         mask_type: cartesian
         num_low_frequencies: null  # set if your masks have an ACS region
         use_seed: false
+        num_adj_slices: &num_adj_slices 5
     val_transform:
       class_path: data.CineNpyDataTransform
       init_args:
         mask_type: cartesian
         num_low_frequencies: null
         use_seed: true
-    num_adj_slices: &num_adj_slices 5
+        num_adj_slices: *num_adj_slices
+    num_adj_slices: *num_adj_slices
     batch_size: 1
     distributed_sampler: true
     use_dataset_cache_file: false
