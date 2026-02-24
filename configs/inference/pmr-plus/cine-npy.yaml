@@ -1,0 +1,49 @@
+# Inference config for cine MRI data in .npy format
+# Outputs reconstructions as .npy files
+#
+# Usage:
+#   python main.py predict --config configs/model/pmr-plus.yaml --config configs/inference/pmr-plus/cine-npy.yaml
+
+data:
+  class_path: pl_modules.CineNpyDataModule
+  init_args:
+    data_path: /path/to/your/cine_data  # base directory containing ksp/, mask/, sense/, split.json
+    challenge: multicoil
+    split_json: null  # defaults to data_path/split.json
+    ksp_dir: ksp
+    mask_dir: mask
+    sense_dir: sense
+    train_transform:
+      class_path: data.CineNpyDataTransform
+      init_args:
+        mask_type: cartesian
+        num_adj_slices: &num_adj_slices 5
+    val_transform:
+      class_path: data.CineNpyDataTransform
+      init_args:
+        mask_type: cartesian
+        num_low_frequencies: null
+        use_seed: true
+        num_adj_slices: *num_adj_slices
+    num_adj_slices: *num_adj_slices
+    batch_size: 1
+    distributed_sampler: false
+
+seed_everything: 42
+trainer:
+  accelerator: gpu
+  strategy: ddp
+  devices: 1
+  num_nodes: 1
+  logger: false
+  callbacks:
+    -
+      class_path: __main__.CustomWriter
+      init_args:
+        output_dir: _predict/cine-npy/pmr-plus
+        write_interval: batch_and_epoch
+        save_format: npy  # output as .npy files
+model:
+  class_path: pl_modules.PromptMrModule
+
+ckpt_path: /path/to/your/checkpoint.ckpt

@@ -264,6 +264,7 @@ class PromptMRSample(NamedTuple):
         mask_type: The type of mask used.
         num_t: number of temporal frames in the original volume. Only used for CmrxRecon data.
         num_slc: number of slices in the original volume. Only used for CmrxRecon data.
+        sens_maps: Pre-computed sensitivity maps. None when estimated by the model.
     """
 
     masked_kspace: torch.Tensor
@@ -277,6 +278,7 @@ class PromptMRSample(NamedTuple):
     mask_type: str
     num_t: int
     num_slc: int
+    sens_maps: Optional[torch.Tensor] = None
     
 class CmrxReconDataTransform:
     """
@@ -639,6 +641,102 @@ class CalgaryCampinasDataTransform:
             mask_type=mask_type,
             num_t = -1,
             num_slc = -1
+        )
+
+        return sample
+
+
+class CineNpyDataTransform:
+    """
+    Data Transformer for cine MRI .npy data with pre-computed sensitivity maps.
+
+    This transform receives **fully sampled** k-space, a sampling mask, and
+    sensitivity maps from CineNpySliceDataset.  It computes:
+      1. The ground-truth target image  (RSS of IFFT of center-frame k-space).
+      2. The undersampled masked k-space (fully-sampled k-space * mask).
+    and packages everything into a PromptMRSample.
+    """
+
+    def __init__(self, mask_type: str = 'cartesian', num_low_frequencies: Optional[int] = None,
+                 use_seed: bool = True, num_adj_slices: int = 5):
+        """
+        Args:
+            mask_type: Type of undersampling mask (e.g. 'cartesian', 'radial').
+            num_low_frequencies: Number of ACS (auto-calibration signal) lines.
+            use_seed: Kept for interface compatibility.
+            num_adj_slices: Number of adjacent temporal frames concatenated
+                along the coil dimension.  Must match the dataset setting.
+        """
+        self.mask_type = mask_type
+        self.num_low_frequencies = num_low_frequencies
+        self.use_seed = use_seed
+        self.num_adj_slices = num_adj_slices
+        # mask_func is None since we use provided masks
+        self.mask_func = None
+
+    def __call__(
+        self,
+        kspace: np.ndarray,
+        mask: np.ndarray,
+        target: Optional[np.ndarray],
+        attrs: Dict,
+        fname: str,
+        slice_num: int,
+        num_t: int,
+        sens_map: np.ndarray,
+    ) -> PromptMRSample:
+        """
+        Args:
+            kspace: Fully-sampled k-space of shape (num_adj*C, H, W), complex.
+            mask: Sampling mask of shape (H, W).
+            target: Pre-computed target image (unused; computed here from k-space).
+            attrs: Metadata dictionary.
+            fname: File name.
+            slice_num: Temporal frame index.
+            num_t: Number of temporal frames in the volume.
+            sens_map: Sensitivity maps of shape (num_adj*C, H, W), complex.
+
+        Returns:
+            A PromptMRSample with masked k-space, mask, target, sensitivity maps, etc.
+        """
+        # --- Compute target from the center frame of fully-sampled k-space ---
+        num_adj = self.num_adj_slices
+        C = kspace.shape[0] // num_adj          # coils per temporal frame
+        center_idx = num_adj // 2               # index of center frame in adj list
+        center_kspace = kspace[center_idx * C : (center_idx + 1) * C]  # (C, H, W) complex
+
+        center_kspace_torch = to_tensor(center_kspace)    # (C, H, W, 2)
+        coil_images = ifft2c(center_kspace_torch)         # (C, H, W, 2)
+        target_torch = rss_complex(coil_images, dim=0)    # (H, W)
+        max_value = target_torch.max().item()
+
+        # --- Convert arrays to tensors ---
+        kspace_torch   = to_tensor(kspace)      # (num_adj*C, H, W, 2)
+        sens_map_torch = to_tensor(sens_map)    # (num_adj*C, H, W, 2)
+
+        # Mask: (H, W) -> (1, H, W, 1) for broadcasting over (C, H, W, 2)
+        mask_torch = torch.from_numpy(mask.astype(np.float32))
+        if mask_torch.ndim == 2:
+            mask_torch = mask_torch[None, :, :, None]  # (1, H, W, 1)
+
+        # --- Compute undersampled k-space ---
+        masked_kspace = kspace_torch * mask_torch + 0.0
+
+        crop_size = (attrs["recon_size"][0], attrs["recon_size"][1])
+
+        sample = PromptMRSample(
+            masked_kspace=masked_kspace,
+            mask=mask_torch.to(torch.bool),
+            num_low_frequencies=self.num_low_frequencies,
+            target=target_torch,
+            fname=fname,
+            slice_num=slice_num,
+            max_value=max_value,
+            crop_size=crop_size,
+            mask_type=self.mask_type,
+            num_t=num_t,
+            num_slc=1,
+            sens_maps=sens_map_torch,
         )
 
         return sample

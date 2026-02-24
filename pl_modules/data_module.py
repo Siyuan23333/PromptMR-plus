@@ -365,6 +365,127 @@ class InferenceDataModule(L.LightningDataModule):
         return self._create_data_loader(self.slice_dataset, self.test_transform, data_path=self.data_path)
 
 
+#########################################################################################################
+# Cine NPY DataModule
+#########################################################################################################
 
+class CineNpyDataModule(L.LightningDataModule):
+    """
+    DataModule for cine MRI data stored as .npy files.
 
+    Expects a single data directory with ksp/, mask/, sense/ sub-directories
+    and a split.json file defining train/val splits by filename stems.
+
+    Directory layout:
+        data_path/
+            ksp/subject001.npy, subject002.npy, ...
+            mask/subject001.npy, subject002.npy, ...
+            sense/subject001.npy, subject002.npy, ...
+            split.json  (or specified via split_json parameter)
+    """
+
+    def __init__(
+        self,
+        data_path: Path,
+        train_transform: Callable,
+        val_transform: Callable,
+        challenge: str = "multicoil",
+        split_json: Optional[str] = None,
+        ksp_dir: str = "ksp",
+        mask_dir: str = "mask",
+        sense_dir: str = "sense",
+        sample_rate: Optional[float] = None,
+        val_sample_rate: Optional[float] = None,
+        volume_sample_rate: Optional[float] = None,
+        val_volume_sample_rate: Optional[float] = None,
+        train_filter: Optional[Callable] = None,
+        val_filter: Optional[Callable] = None,
+        use_dataset_cache_file: bool = False,
+        batch_size: int = 1,
+        num_workers: int = 4,
+        distributed_sampler: bool = False,
+        num_adj_slices: int = 5,
+        data_balancer: Optional[Callable] = None,
+    ):
+        super().__init__()
+        from data import CineNpySliceDataset
+        self.slice_dataset = CineNpySliceDataset
+        self.data_path = Path(data_path)
+        self.challenge = challenge
+        self.train_transform = train_transform
+        self.val_transform = val_transform
+        self.split_json = split_json or str(self.data_path / "split.json")
+        self.ksp_dir = ksp_dir
+        self.mask_dir = mask_dir
+        self.sense_dir = sense_dir
+        self.sample_rate = sample_rate
+        self.val_sample_rate = val_sample_rate
+        self.volume_sample_rate = volume_sample_rate
+        self.val_volume_sample_rate = val_volume_sample_rate
+        self.train_filter = train_filter
+        self.val_filter = val_filter
+        self.use_dataset_cache_file = use_dataset_cache_file
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.distributed_sampler = distributed_sampler
+        self.num_adj_slices = num_adj_slices
+        self.data_balancer = data_balancer
+
+    def _create_data_loader(self, data_partition: str) -> torch.utils.data.DataLoader:
+        is_train = (data_partition == "train")
+
+        if is_train:
+            data_transform = self.train_transform
+            sample_rate = self.sample_rate
+            volume_sample_rate = self.volume_sample_rate
+            raw_sample_filter = self.train_filter
+        else:
+            data_transform = self.val_transform
+            sample_rate = self.val_sample_rate
+            volume_sample_rate = self.val_volume_sample_rate
+            raw_sample_filter = self.val_filter
+
+        dataset = self.slice_dataset(
+            root=self.data_path,
+            challenge=self.challenge,
+            transform=data_transform,
+            sample_rate=sample_rate,
+            volume_sample_rate=volume_sample_rate,
+            use_dataset_cache=self.use_dataset_cache_file,
+            raw_sample_filter=raw_sample_filter,
+            data_balancer=self.data_balancer if is_train else None,
+            num_adj_slices=self.num_adj_slices,
+            ksp_dir=self.ksp_dir,
+            mask_dir=self.mask_dir,
+            sense_dir=self.sense_dir,
+            split_json=self.split_json,
+            split=data_partition,
+        )
+
+        sampler = None
+        if self.distributed_sampler:
+            if is_train:
+                sampler = torch.utils.data.DistributedSampler(dataset)
+            else:
+                sampler = VolumeSampler(dataset, shuffle=False)
+
+        dataloader = torch.utils.data.DataLoader(
+            dataset=dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            worker_init_fn=worker_init_fn,
+            sampler=sampler,
+            shuffle=is_train if sampler is None else False,
+        )
+
+        return dataloader
+
+    def train_dataloader(self):
+        return self._create_data_loader("train")
+
+    def val_dataloader(self):
+        return self._create_data_loader("val")
+
+    def predict_dataloader(self):
+        return self._create_data_loader("val")
 
