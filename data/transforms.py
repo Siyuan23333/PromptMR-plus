@@ -724,10 +724,13 @@ class CineNpyDataTransform:
 
         crop_size = (attrs["recon_size"][0], attrs["recon_size"][1])
 
+        # num_low_frequencies must be an int (not None) for default_collate
+        num_low_frequencies = self.num_low_frequencies if self.num_low_frequencies is not None else 0
+
         sample = PromptMRSample(
             masked_kspace=masked_kspace,
             mask=mask_torch.to(torch.bool),
-            num_low_frequencies=self.num_low_frequencies,
+            num_low_frequencies=num_low_frequencies,
             target=target_torch,
             fname=fname,
             slice_num=slice_num,
