@@ -705,14 +705,14 @@ class CineNpyDataTransform:
         center_idx = num_adj // 2               # index of center frame in adj list
         center_kspace = kspace[center_idx * C : (center_idx + 1) * C]  # (C, H, W) complex
 
-        center_kspace_torch = to_tensor(center_kspace)    # (C, H, W, 2)
-        coil_images = ifft2c(center_kspace_torch)         # (C, H, W, 2)
-        target_torch = rss_complex(coil_images, dim=0)    # (H, W)
+        center_kspace_torch = to_tensor(center_kspace).float()  # (C, H, W, 2)
+        coil_images = ifft2c(center_kspace_torch)               # (C, H, W, 2)
+        target_torch = rss_complex(coil_images, dim=0)          # (H, W)
         max_value = target_torch.max().item()
 
-        # --- Convert arrays to tensors ---
-        kspace_torch   = to_tensor(kspace)      # (num_adj*C, H, W, 2)
-        sens_map_torch = to_tensor(sens_map)    # (num_adj*C, H, W, 2)
+        # --- Convert arrays to tensors (ensure float32) ---
+        kspace_torch   = to_tensor(kspace).float()      # (num_adj*C, H, W, 2)
+        sens_map_torch = to_tensor(sens_map).float()    # (num_adj*C, H, W, 2)
 
         # Mask: (H, W) -> (1, H, W, 1) for broadcasting over (C, H, W, 2)
         mask_torch = torch.from_numpy(mask.astype(np.float32))
