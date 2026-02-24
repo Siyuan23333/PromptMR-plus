@@ -12,10 +12,10 @@
 data:
   class_path: pl_modules.CineNpyDataModule
   init_args:
-    ksp_dir: /path/to/kspace          # directory with fully-sampled k-space .npy files
-    mask_dir: /path/to/masks           # directory with sampling mask .npy files
-    sense_dir: /path/to/sensemaps      # directory with coil sensitivity map .npy files
-    split_json: /path/to/split.json    # train/val split file
+    ksp_dir: /gpfs/scrubbed/hanruish/cine_recon/datasets/cmr2025/training/FullySampled          # directory with fully-sampled k-space .npy files
+    mask_dir: /gpfs/scrubbed/hanruish/cine_recon/datasets/cmr2025/training/Mask_Radial8           # directory with sampling mask .npy files
+    sense_dir: /gpfs/scrubbed/hanruish/cine_recon/datasets/cmr2025/training/SenseMaps      # directory with coil sensitivity map .npy files
+    split_json: /gpfs/scrubbed/hanruish/cine_recon/codes/baseline/split.json    # train/val split file
     challenge: multicoil
     train_transform:
       class_path: data.CineNpyDataTransform
@@ -39,7 +39,7 @@ data:
 # dataset specific settings
 trainer:
   strategy: ddp
-  devices: 4
+  devices: 2
   num_nodes: 1
   max_epochs: 12
   logger:
