@@ -717,6 +717,16 @@ class CineNpyDataTransform:
         center_idx = num_adj // 2               # index of center frame in adj list
         center_kspace = kspace[center_idx * C : (center_idx + 1) * C]  # (C, H, W) complex
 
+        # --- DEBUG: Print transform input info ---
+        if not hasattr(self, '_debug_printed'):
+            self._debug_printed = True
+            print(f"[DEBUG Transform] fname={fname}, slice_num={slice_num}")
+            print(f"[DEBUG Transform]   kspace: shape={kspace.shape}, dtype={kspace.dtype}")
+            print(f"[DEBUG Transform]   mask: shape={mask.shape}, dtype={mask.dtype}")
+            print(f"[DEBUG Transform]   sens_map: shape={sens_map.shape}, dtype={sens_map.dtype}")
+            print(f"[DEBUG Transform]   num_adj={num_adj}, C={C}, center_idx={center_idx}")
+            print(f"[DEBUG Transform]   center_kspace: shape={center_kspace.shape}")
+
         center_kspace_torch = to_tensor(center_kspace).float()  # (C, H, W, 2)
         coil_images = ifft2c(center_kspace_torch)               # (C, H, W, 2)
         target_torch = rss_complex(coil_images, dim=0)          # (H, W)
@@ -743,10 +753,26 @@ class CineNpyDataTransform:
         sens_map_torch = sens_map_torch / (rss_norm.unsqueeze(-1).unsqueeze(1) + 1e-12)
         sens_map_torch = sens_map_torch.view(-1, *sens_map_torch.shape[2:])  # (num_adj*C, H, W, 2)
 
+        # --- DEBUG: Print key tensor stats ---
+        if not hasattr(self, '_debug_printed2'):
+            self._debug_printed2 = True
+            print(f"[DEBUG Transform]   target: shape={target_torch.shape}, max={max_value:.6e}")
+            print(f"[DEBUG Transform]   target has NaN={torch.isnan(target_torch).any()}")
+            print(f"[DEBUG Transform]   kspace_torch: shape={kspace_torch.shape}")
+            print(f"[DEBUG Transform]   sens_map_torch: shape={sens_map_torch.shape}")
+            print(f"[DEBUG Transform]   sens has NaN={torch.isnan(sens_map_torch).any()}")
+            print(f"[DEBUG Transform]   rss_norm range: [{rss_norm.min():.6e}, {rss_norm.max():.6e}]")
+            print(f"[DEBUG Transform]   rss_norm near-zero (<1e-6) count: {(rss_norm < 1e-6).sum().item()}")
+
         # Mask: (H, W) -> (1, H, W, 1) for broadcasting over (C, H, W, 2)
         mask_torch = torch.from_numpy(mask.astype(np.float32))
         if mask_torch.ndim == 2:
             mask_torch = mask_torch[None, :, :, None]  # (1, H, W, 1)
+
+        # --- DEBUG: Print mask info ---
+        if not hasattr(self, '_debug_printed3'):
+            self._debug_printed3 = True
+            print(f"[DEBUG Transform]   mask_torch: shape={mask_torch.shape}, unique={torch.unique(mask_torch).tolist()}")
 
         # --- Compute undersampled k-space ---
         masked_kspace = kspace_torch * mask_torch + 0.0

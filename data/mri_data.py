@@ -1223,12 +1223,30 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
         # Load sensitivity maps: [T, C, H, W] complex
         sense_volume = np.load(str(self.sense_dir / f"{stem}.npy"))
 
+        # --- DEBUG: Print shapes on first sample ---
+        if i == 0:
+            print(f"[DEBUG CineNpy] file={stem}, ti={ti}, num_t={num_t}")
+            print(f"[DEBUG CineNpy]   ksp_volume: shape={ksp_volume.shape}, dtype={ksp_volume.dtype}")
+            print(f"[DEBUG CineNpy]   mask_volume: shape={mask_volume.shape}, dtype={mask_volume.dtype}")
+            print(f"[DEBUG CineNpy]   sense_volume: shape={sense_volume.shape}, dtype={sense_volume.dtype}")
+            print(f"[DEBUG CineNpy]   ksp has NaN={np.isnan(ksp_volume).any()}, Inf={np.isinf(ksp_volume).any()}")
+            print(f"[DEBUG CineNpy]   ksp abs range: [{np.abs(ksp_volume).min():.6e}, {np.abs(ksp_volume).max():.6e}]")
+            print(f"[DEBUG CineNpy]   mask unique values: {np.unique(mask_volume)}")
+            print(f"[DEBUG CineNpy]   sens has NaN={np.isnan(sense_volume).any()}, Inf={np.isinf(sense_volume).any()}")
+
         # Gather adjacent temporal frames
         ti_idx_list = self._get_ti_adj_idx_list(ti, num_t)
 
         kspace = np.concatenate([ksp_volume[idx] for idx in ti_idx_list], axis=0)  # [num_adj*C, H, W]
         mask = mask_volume[ti]  # [H, W]
         sens_map = np.concatenate([sense_volume[idx] for idx in ti_idx_list], axis=0)  # [num_adj*C, H, W]
+
+        # --- DEBUG: Print gathered shapes ---
+        if i == 0:
+            print(f"[DEBUG CineNpy]   ti_idx_list={ti_idx_list}")
+            print(f"[DEBUG CineNpy]   kspace gathered: shape={kspace.shape}")
+            print(f"[DEBUG CineNpy]   mask gathered: shape={mask.shape}")
+            print(f"[DEBUG CineNpy]   sens_map gathered: shape={sens_map.shape}")
 
         attrs = {
             'encoding_size': metadata['encoding_size'],
