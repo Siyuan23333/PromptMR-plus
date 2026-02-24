@@ -268,8 +268,6 @@ class PromptMRSample(NamedTuple):
         mask_type: The type of mask used.
         num_t: number of temporal frames in the original volume. Only used for CmrxRecon data.
         num_slc: number of slices in the original volume. Only used for CmrxRecon data.
-        sens_maps: Optional precomputed coil sensitivity maps. If provided, the model
-            will use these instead of estimating sensitivity maps internally.
     """
 
     masked_kspace: torch.Tensor
@@ -283,7 +281,6 @@ class PromptMRSample(NamedTuple):
     mask_type: str
     num_t: int
     num_slc: int
-    sens_maps: Optional[torch.Tensor] = None
     
 class CmrxReconDataTransform:
     """
