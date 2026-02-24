@@ -777,6 +777,16 @@ class CineNpyDataTransform:
         # --- Compute undersampled k-space ---
         masked_kspace = kspace_torch * mask_torch + 0.0
 
+        # --- Normalize k-space and target to prevent float32 overflow in backprop ---
+        # Raw k-space can have magnitudes ~1e6+, which causes gradient explosion
+        # through the cascade data-consistency steps.  Dividing by max_value
+        # brings the image-domain signal to ~[0, 1] while keeping SSIM loss
+        # consistent (data_range becomes 1.0).
+        if max_value > 1e-9:
+            masked_kspace = masked_kspace / max_value
+            target_torch = target_torch / max_value
+            max_value = 1.0
+
         crop_size = (attrs["recon_size"][0], attrs["recon_size"][1])
 
         # num_low_frequencies must be an int (not None) for default_collate
