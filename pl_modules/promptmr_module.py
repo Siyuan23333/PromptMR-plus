@@ -180,21 +180,55 @@ class PromptMrModule(MriModule):
         return None
 
     def training_step(self, batch, batch_idx):
+        # --- DEBUG: Print batch info for first few steps ---
+        if batch_idx < 3:
+            print(f"\n[DEBUG train_step] batch_idx={batch_idx}")
+            print(f"  masked_kspace: shape={batch.masked_kspace.shape}, "
+                  f"has_nan={torch.isnan(batch.masked_kspace).any()}, "
+                  f"abs_max={batch.masked_kspace.abs().max():.6e}")
+            print(f"  mask: shape={batch.mask.shape}, dtype={batch.mask.dtype}")
+            print(f"  target: shape={batch.target.shape}, "
+                  f"has_nan={torch.isnan(batch.target).any()}, "
+                  f"range=[{batch.target.min():.6e}, {batch.target.max():.6e}]")
+            print(f"  max_value: {batch.max_value}")
+            if hasattr(batch, 'sens_maps') and batch.sens_maps is not None and batch.sens_maps.dim() > 1:
+                print(f"  sens_maps: shape={batch.sens_maps.shape}, "
+                      f"has_nan={torch.isnan(batch.sens_maps).any()}, "
+                      f"abs_max={batch.sens_maps.abs().max():.6e}")
+            print(f"  fname={batch.fname}, slice_num={batch.slice_num}")
+
         precomputed_sens_maps = self._get_precomputed_sens_maps(batch)
         output_dict = self(batch.masked_kspace, batch.mask, batch.num_low_frequencies, batch.mask_type,
                            use_checkpoint=self.use_checkpoint, compute_sens_per_coil=self.compute_sens_per_coil,
                            precomputed_sens_maps=precomputed_sens_maps)
         output = output_dict['img_pred']
+
+        # --- DEBUG: Print output info for first few steps ---
+        if batch_idx < 3:
+            print(f"  output: shape={output.shape}, "
+                  f"has_nan={torch.isnan(output).any()}, "
+                  f"range=[{output.min():.6e}, {output.max():.6e}]")
+
         target, output = transforms.center_crop_to_smallest(
             batch.target, output)
 
         loss = self.loss(
             output.unsqueeze(1), target.unsqueeze(1), data_range=batch.max_value
         )
+
+        # --- DEBUG: Print loss info for first few steps ---
+        if batch_idx < 3:
+            print(f"  loss={loss.item():.6e}")
+
         self.log("train_loss", loss, prog_bar=True)
 
         ##! raise error if loss is nan
         if torch.isnan(loss):
+            print(f"\n[DEBUG NaN DETECTED] batch_idx={batch_idx}")
+            print(f"  fname={batch.fname}, slice_num={batch.slice_num}")
+            print(f"  target: has_nan={torch.isnan(batch.target).any()}, range=[{batch.target.min():.6e}, {batch.target.max():.6e}]")
+            print(f"  output: has_nan={torch.isnan(output).any()}, range=[{output.min():.6e}, {output.max():.6e}]")
+            print(f"  max_value={batch.max_value}")
             raise ValueError(f'nan loss on {batch.fname} of slice {batch.slice_num}')
         return loss
 
