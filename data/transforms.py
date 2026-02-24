@@ -6,6 +6,8 @@ import torch
 from data.subsample import MaskFunc
 from mri_utils import fft2c, ifft2c, rss_complex, complex_abs
 from data.subsample import CmrxRecon24MaskFunc, PoissonDiscMaskFunc
+
+
 def to_tensor(data: np.ndarray) -> torch.Tensor:
     """
     Convert numpy array to PyTorch tensor.
@@ -688,7 +690,7 @@ class CineNpyDataTransform:
         num_coils = kspace.shape[0] // num_adj
 
         # Convert kspace to tensor: [adj*C, H, W, 2]
-        kspace_torch = to_tensor(kspace)
+        kspace_torch = to_tensor(kspace).float()
 
         # Prepare mask: [adj, H, W] -> repeat for coils -> [adj*C, H, W, 1]
         mask_expanded = np.repeat(mask, num_coils, axis=0)  # [adj*C, H, W]
@@ -698,7 +700,7 @@ class CineNpyDataTransform:
         masked_kspace = kspace_torch * mask_torch
 
         # Convert sensitivity maps to tensor: [adj*C, H, W, 2]
-        sens_maps_torch = to_tensor(sens_maps_np)
+        sens_maps_torch = to_tensor(sens_maps_np).float()
 
         # Normalize sensitivity maps: divide by RSS across coils per adj frame
         # Reshape to [adj, C, H, W, 2], compute RSS over C, reshape back
