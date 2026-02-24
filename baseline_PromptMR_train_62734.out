@@ -1,0 +1,629 @@
+________________________________________________________________________________
+Miniforge (conda) has been loaded.
+
+WARNING: Login nodes are CPU ONLY. Install pkgs with GPU support on compute
+nodes.
+
+- Please create and work in your own conda environments:
+    conda create -n myenv python=3.11
+    conda activate myenv
+
+- To customize environment or package locations, edit your ~/.condarc:
+    envs_dirs:
+      - /path/to/your/envs
+    pkgs_dirs:
+      - /path/to/your/pkgs
+
+  For more information, see:
+    https://docs.conda.io/projects/conda/en/latest/configuration.html
+
+- If your personal Conda stops working after unloading this module, try:
+    source ~/.bashrc
+________________________________________________________________________________
+
+[rank: 0] Seed set to 42
+/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/fabric/plugins/environments/slurm.py:204: The `srun` command is available on your system but is not used. HINT: If your intention is to run Lightning on SLURM, prepend your python command with `srun` like so: srun python main.py fit --config configs/base.yaml --config conf ...
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+💡 Tip: For seamless cloud logging and experiment tracking, try installing [litlogger](https://pypi.org/project/litlogger/) to enable LitLogger, which logs metrics and artifacts automatically to the Lightning Experiments platform.
+You are using a CUDA device ('NVIDIA H200') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/2
+[rank: 1] Seed set to 42
+Initializing distributed: GLOBAL_RANK: 1, MEMBER: 2/2
+----------------------------------------------------------------------------------------------------
+distributed_backend=nccl
+All distributed processes registered. Starting with 2 processes
+----------------------------------------------------------------------------------------------------
+
+wandb: Currently logged in as: jamesgsy233 (vilin97-uw) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: Tracking run with wandb version 0.23.0
+wandb: Run data is saved locally in exp/cine-npy/pmr-plus/wandb/run-20260223_213017-blinoy54
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run cine-npy-pmr-plus
+wandb: ⭐️ View project at https://wandb.ai/vilin97-uw/deep_recon
+wandb: 🚀 View run at https://wandb.ai/vilin97-uw/deep_recon/runs/blinoy54
+wandb: WARNING The project_name method is deprecated and will be removed in a future release. Please use `run.project` instead.
+LOCAL_RANK: 1 - CUDA_VISIBLE_DEVICES: [0,1]
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1]
+
+  | Name             | Type                 | Params | Mode  | FLOPs
+--------------------------------------------------------------------------
+0 | NMSE             | DistributedMetricSum | 0      | train | 0    
+1 | SSIM             | DistributedMetricSum | 0      | train | 0    
+2 | PSNR             | DistributedMetricSum | 0      | train | 0    
+3 | ValLoss          | DistributedMetricSum | 0      | train | 0    
+4 | TotExamples      | DistributedMetricSum | 0      | train | 0    
+5 | TotSliceExamples | DistributedMetricSum | 0      | train | 0    
+6 | promptmr         | PromptMR             | 92.9 M | train | 0    
+7 | loss             | SSIMLoss             | 0      | train | 0    
+--------------------------------------------------------------------------
+82.5 M    Trainable params
+10.4 M    Non-trainable params
+92.9 M    Total params
+371.436   Total estimated model params size (MB)
+4547      Modules in train mode
+0         Modules in eval mode
+0         Total Flops
+Configuration saved to exp/cine-npy/pmr-plus/deep_recon/blinoy54/config.yaml
+Sanity Checking: |          | 0/? [00:00<?, ?it/s]/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/utilities/_pytree.py:21: `isinstance(treespec, LeafSpec)` is deprecated, use `isinstance(treespec, TreeSpec) and treespec.is_leaf()` instead.
+CineNpySliceDataset [val]: 4284 samples from 357 files
+CineNpySliceDataset [val]: 4284 samples from 357 files
+Sanity Checking: |          | 0/? [00:00<?, ?it/s]Sanity Checking DataLoader 0:   0%|          | 0/2 [00:00<?, ?it/s]Sanity Checking DataLoader 0:  50%|█████     | 1/2 [00:00<00:00,  2.18it/s]Sanity Checking DataLoader 0: 100%|██████████| 2/2 [00:00<00:00,  3.55it/s]/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/connectors/logger_connector/result.py:433: It is recommended to use `self.log('validation_loss', ..., sync_dist=True)` when logging on epoch level in distributed setting to accumulate the metric across devices.
+/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/connectors/logger_connector/result.py:433: It is recommended to use `self.log('val_metrics/nmse', ..., sync_dist=True)` when logging on epoch level in distributed setting to accumulate the metric across devices.
+/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/connectors/logger_connector/result.py:433: It is recommended to use `self.log('val_metrics/ssim', ..., sync_dist=True)` when logging on epoch level in distributed setting to accumulate the metric across devices.
+/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/connectors/logger_connector/result.py:433: It is recommended to use `self.log('val_metrics/psnr', ..., sync_dist=True)` when logging on epoch level in distributed setting to accumulate the metric across devices.
+                                                                           CineNpySliceDataset [train]: 17160 samples from 1430 files
+CineNpySliceDataset [train]: 17160 samples from 1430 files
+Training: |          | 0/? [00:00<?, ?it/s]Training: |          | 0/? [00:00<?, ?it/s]Epoch 0:   0%|          | 0/8580 [00:00<?, ?it/s]/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/autograd/graph.py:865: UserWarning: The AccumulateGrad node's stream does not match the stream of the node that produced the incoming gradient. This may incur unnecessary synchronization and break CUDA graph capture if the AccumulateGrad node's stream is the default stream. This mismatch is caused by an AccumulateGrad node created prior to the current iteration being kept alive. This can happen if the autograd graph is still being kept alive by tensors such as the loss, or if you are using DDP, which will stash a reference to the node. To resolve the mismatch, delete all references to the autograd graph or ensure that DDP initialization is performed under the same stream as subsequent forwards. If the mismatch is intentional, you can use torch.autograd.graph.set_warn_on_accumulate_grad_stream_mismatch(False) to suppress this warning. (Triggered internally at /pytorch/torch/csrc/autograd/input_buffer.cpp:240.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/autograd/graph.py:865: UserWarning: The AccumulateGrad node's stream does not match the stream of the node that produced the incoming gradient. This may incur unnecessary synchronization and break CUDA graph capture if the AccumulateGrad node's stream is the default stream. This mismatch is caused by an AccumulateGrad node created prior to the current iteration being kept alive. This can happen if the autograd graph is still being kept alive by tensors such as the loss, or if you are using DDP, which will stash a reference to the node. To resolve the mismatch, delete all references to the autograd graph or ensure that DDP initialization is performed under the same stream as subsequent forwards. If the mismatch is intentional, you can use torch.autograd.graph.set_warn_on_accumulate_grad_stream_mismatch(False) to suppress this warning. (Triggered internally at /pytorch/torch/csrc/autograd/input_buffer.cpp:240.)
+  return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+
+[DEBUG train_step] batch_idx=0
+  masked_kspace: shape=torch.Size([1, 50, 200, 448, 2]), has_nan=False, abs_max=6.026162e+06
+  mask: shape=torch.Size([1, 1, 200, 448, 1]), dtype=torch.bool
+  target: shape=torch.Size([1, 200, 448]), has_nan=False, range=[4.833185e+03, 2.194991e+06]
+  max_value: tensor([2194991.], device='cuda:0', dtype=torch.float64)
+  sens_maps: shape=torch.Size([1, 50, 200, 448, 2]), has_nan=False, abs_max=1.000000e+00
+  fname=('Center001_UIH_30T_umr780_P053_cine_sax_slice2.npy',), slice_num=tensor([8], device='cuda:0')
+  output: shape=torch.Size([1, 200, 448]), has_nan=False, range=[0.000000e+00, 1.103699e+06]
+  loss=4.154880e-01
+Epoch 0:   0%|          | 1/8580 [00:02<4:53:03,  0.49it/s]Epoch 0:   0%|          | 1/8580 [00:02<4:53:19,  0.49it/s, v_num=oy54, train_loss=0.415][DEBUG Transform] fname=Center003_UIH_30T_umr880_P020_cine_sax_slice7.npy, slice_num=3
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=1.144371e+07
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.464247e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 289970
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center003_UIH_30T_umr880_P006_cine_sax_slice4.npy, slice_num=5
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=1.454234e+07
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.009134e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 282710
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center006_Siemens_30T_Prisma_P034_cine_sax_slice1.npy, slice_num=0
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=3.421010e-03
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.136309e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 228870
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center006_Siemens_30T_Prisma_P027_cine_sax_slice3.npy, slice_num=10
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=7.831510e-03
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.222751e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 257295
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center001_UIH_30T_umr780_P049_cine_sax_slice7.npy, slice_num=1
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=1.553629e+06
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.817834e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 230130
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center001_UIH_30T_umr780_P050_cine_sax_slice9.npy, slice_num=1
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=2.595804e+06
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.069473e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 223085
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center005_Siemens_30T_Vida_P009_cine_sax_slice1.npy, slice_num=11
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=2.213935e-03
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.108963e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 189015
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center001_UIH_30T_umr780_P053_cine_sax_slice2.npy, slice_num=8
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=2.194991e+06
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 9.761562e-01]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 193695
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center001_UIH_30T_umr780_P003_cine_lax_3ch_slice0.npy, slice_num=0
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=2.676933e+06
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.114412e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 218550
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center001_UIH_30T_umr780_P003_cine_lax_3ch_slice0.npy, slice_num=3
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=2.611420e+06
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.079252e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 218550
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center001_UIH_30T_umr780_P003_cine_lax_3ch_slice0.npy, slice_num=1
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=2.596710e+06
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.114412e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 218550
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center001_UIH_30T_umr780_P003_cine_lax_3ch_slice0.npy, slice_num=2
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=2.619655e+06
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.114412e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 218550
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center001_UIH_30T_umr780_P001_cine_lax_4ch_slice0.npy, slice_num=3
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=2.653890e+06
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.217164e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 188100
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center001_UIH_30T_umr780_P001_cine_lax_4ch_slice0.npy, slice_num=2
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=2.640374e+06
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.225644e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 188100
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG Transform] fname=Center001_UIH_30T_umr780_P001_cine_lax_4ch_slice0.npy, slice_num=1
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=2.633517e+06
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.225644e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 188100
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+[DEBUG CineNpy] file=Center001_UIH_30T_umr780_P001_cine_lax_4ch_slice0, ti=0, num_t=12
+[DEBUG CineNpy]   ksp_volume: shape=(12, 10, 200, 448), dtype=complex128
+[DEBUG CineNpy]   mask_volume: shape=(12, 200, 448), dtype=float64
+[DEBUG CineNpy]   sense_volume: shape=(12, 10, 200, 448), dtype=complex128
+[DEBUG CineNpy]   ksp has NaN=False, Inf=False
+[DEBUG CineNpy]   ksp abs range: [0.000000e+00, 8.135351e+06]
+[DEBUG CineNpy]   mask unique values: [0. 1.]
+[DEBUG CineNpy]   sens has NaN=False, Inf=False
+[DEBUG CineNpy]   ti_idx_list=[10, 11, 0, 1, 2]
+[DEBUG CineNpy]   kspace gathered: shape=(50, 200, 448)
+[DEBUG CineNpy]   mask gathered: shape=(200, 448)
+[DEBUG CineNpy]   sens_map gathered: shape=(50, 200, 448)
+[DEBUG Transform] fname=Center001_UIH_30T_umr780_P001_cine_lax_4ch_slice0.npy, slice_num=0
+[DEBUG Transform]   kspace: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   mask: shape=(200, 448), dtype=float64
+[DEBUG Transform]   sens_map: shape=(50, 200, 448), dtype=complex128
+[DEBUG Transform]   num_adj=5, C=10, center_idx=2
+[DEBUG Transform]   center_kspace: shape=(10, 200, 448)
+[DEBUG Transform]   target: shape=torch.Size([200, 448]), max=2.623748e+06
+[DEBUG Transform]   target has NaN=False
+[DEBUG Transform]   kspace_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens_map_torch: shape=torch.Size([50, 200, 448, 2])
+[DEBUG Transform]   sens has NaN=False
+[DEBUG Transform]   rss_norm range: [0.000000e+00, 1.225644e+00]
+[DEBUG Transform]   rss_norm near-zero (<1e-6) count: 188100
+[DEBUG Transform]   mask_torch: shape=torch.Size([1, 200, 448, 1]), unique=[0.0, 1.0]
+
+[DEBUG train_step] batch_idx=0
+  masked_kspace: shape=torch.Size([1, 50, 200, 448, 2]), has_nan=False, abs_max=1.746030e+07
+  mask: shape=torch.Size([1, 1, 200, 448, 1]), dtype=torch.bool
+  target: shape=torch.Size([1, 200, 448]), has_nan=False, range=[7.336020e+03, 1.144371e+07]
+  max_value: tensor([11443709.], device='cuda:1', dtype=torch.float64)
+  sens_maps: shape=torch.Size([1, 50, 200, 448, 2]), has_nan=False, abs_max=1.000000e+00
+  fname=('Center003_UIH_30T_umr880_P020_cine_sax_slice7.npy',), slice_num=tensor([3], device='cuda:1')
+  output: shape=torch.Size([1, 200, 448]), has_nan=False, range=[0.000000e+00, 5.251676e+06]
+  loss=3.016681e-01
+
+[DEBUG train_step] batch_idx=1
+  masked_kspace: shape=torch.Size([1, 50, 200, 448, 2]), has_nan=False, abs_max=4.254340e-03
+  mask: shape=torch.Size([1, 1, 200, 448, 1]), dtype=torch.bool
+  target: shape=torch.Size([1, 200, 448]), has_nan=False, range=[2.128841e-06, 3.421010e-03]
+  max_value: tensor([0.0034], device='cuda:1', dtype=torch.float64)
+  sens_maps: shape=torch.Size([1, 50, 200, 448, 2]), has_nan=False, abs_max=1.000000e+00
+  fname=('Center006_Siemens_30T_Prisma_P034_cine_sax_slice1.npy',), slice_num=tensor([0], device='cuda:1')
+  output: shape=torch.Size([1, 200, 448]), has_nan=True, range=[nan, nan]
+  loss=nan
+
+[DEBUG NaN DETECTED] batch_idx=1
+  fname=('Center006_Siemens_30T_Prisma_P034_cine_sax_slice1.npy',), slice_num=tensor([0], device='cuda:1')
+  target: has_nan=False, range=[2.128841e-06, 3.421010e-03]
+  output: has_nan=True, range=[nan, nan]
+  max_value=tensor([0.0034], device='cuda:1', dtype=torch.float64)
+[rank1]: Traceback (most recent call last):
+[rank1]:   File "/gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/main.py", line 286, in <module>
+[rank1]:     run_cli()
+[rank1]:   File "/gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/main.py", line 280, in run_cli
+[rank1]:     cli = CustomLightningCLI(
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/cli.py", line 421, in __init__
+[rank1]:     self._run_subcommand(self.subcommand)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/cli.py", line 759, in _run_subcommand
+[rank1]:     fn(**fn_kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 584, in fit
+[rank1]:     call._call_and_handle_interrupt(
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/call.py", line 48, in _call_and_handle_interrupt
+[rank1]:     return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/launchers/subprocess_script.py", line 105, in launch
+[rank1]:     return function(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 630, in _fit_impl
+[rank1]:     self._run(model, ckpt_path=ckpt_path, weights_only=weights_only)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 1079, in _run
+[rank1]:     results = self._run_stage()
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 1123, in _run_stage
+[rank1]:     self.fit_loop.run()
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/fit_loop.py", line 217, in run
+[rank1]:     self.advance()
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/fit_loop.py", line 465, in advance
+[rank1]:     self.epoch_loop.run(self._data_fetcher)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 153, in run
+[rank1]:     self.advance(data_fetcher)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 352, in advance
+[rank1]:     batch_output = self.automatic_optimization.run(trainer.optimizers[0], batch_idx, kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 192, in run
+[rank1]:     self._optimizer_step(batch_idx, closure)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 270, in _optimizer_step
+[rank1]:     call._call_lightning_module_hook(
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/call.py", line 177, in _call_lightning_module_hook
+[rank1]:     output = fn(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/core/module.py", line 1368, in optimizer_step
+[rank1]:     optimizer.step(closure=optimizer_closure)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/core/optimizer.py", line 154, in step
+[rank1]:     step_output = self._strategy.optimizer_step(self._optimizer, closure, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/ddp.py", line 274, in optimizer_step
+[rank1]:     optimizer_output = super().optimizer_step(optimizer, closure, model, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 239, in optimizer_step
+[rank1]:     return self.precision_plugin.optimizer_step(optimizer, model=model, closure=closure, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/plugins/precision/precision.py", line 123, in optimizer_step
+[rank1]:     return optimizer.step(closure=closure, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/optim/lr_scheduler.py", line 166, in wrapper
+[rank1]:     return func.__get__(opt, opt.__class__)(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/optim/optimizer.py", line 526, in wrapper
+[rank1]:     out = func(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/optim/optimizer.py", line 81, in _use_grad
+[rank1]:     ret = func(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/optim/adam.py", line 227, in step
+[rank1]:     loss = closure()
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/plugins/precision/precision.py", line 109, in _wrap_closure
+[rank1]:     closure_result = closure()
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 146, in __call__
+[rank1]:     self._result = self.closure(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+[rank1]:     return func(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 131, in closure
+[rank1]:     step_output = self._step_fn()
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 319, in _training_step
+[rank1]:     training_step_output = call._call_strategy_hook(trainer, "training_step", *kwargs.values())
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/call.py", line 329, in _call_strategy_hook
+[rank1]:     output = fn(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 390, in training_step
+[rank1]:     return self._forward_redirection(self.model, self.lightning_module, "training_step", *args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 641, in __call__
+[rank1]:     wrapper_output = wrapper_module(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+[rank1]:     return self._call_impl(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+[rank1]:     return forward_call(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1666, in forward
+[rank1]:     else self._run_ddp_forward(*inputs, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1492, in _run_ddp_forward
+[rank1]:     return self.module(*inputs, **kwargs)  # type: ignore[index]
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+[rank1]:     return self._call_impl(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+[rank1]:     return forward_call(*args, **kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 634, in wrapped_forward
+[rank1]:     out = method(*_args, **_kwargs)
+[rank1]:   File "/gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/pl_modules/promptmr_module.py", line 232, in training_step
+[rank1]:     raise ValueError(f'nan loss on {batch.fname} of slice {batch.slice_num}')
+[rank1]: ValueError: nan loss on ('Center006_Siemens_30T_Prisma_P034_cine_sax_slice1.npy',) of slice tensor([0], device='cuda:1')
+
+[DEBUG train_step] batch_idx=1
+  masked_kspace: shape=torch.Size([1, 50, 200, 448, 2]), has_nan=False, abs_max=2.411802e+06
+  mask: shape=torch.Size([1, 1, 200, 448, 1]), dtype=torch.bool
+  target: shape=torch.Size([1, 200, 448]), has_nan=False, range=[5.088663e+03, 2.595804e+06]
+  max_value: tensor([2595803.5000], device='cuda:0', dtype=torch.float64)
+  sens_maps: shape=torch.Size([1, 50, 200, 448, 2]), has_nan=False, abs_max=1.000000e+00
+  fname=('Center001_UIH_30T_umr780_P050_cine_sax_slice9.npy',), slice_num=tensor([1], device='cuda:0')
+  output: shape=torch.Size([1, 200, 448]), has_nan=True, range=[nan, nan]
+  loss=nan
+
+[DEBUG NaN DETECTED] batch_idx=1
+  fname=('Center001_UIH_30T_umr780_P050_cine_sax_slice9.npy',), slice_num=tensor([1], device='cuda:0')
+  target: has_nan=False, range=[5.088663e+03, 2.595804e+06]
+  output: has_nan=True, range=[nan, nan]
+  max_value=tensor([2595803.5000], device='cuda:0', dtype=torch.float64)
+Traceback (most recent call last):
+  File "/gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/main.py", line 286, in <module>
+    run_cli()
+  File "/gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/main.py", line 280, in run_cli
+    cli = CustomLightningCLI(
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/cli.py", line 421, in __init__
+    self._run_subcommand(self.subcommand)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/cli.py", line 759, in _run_subcommand
+    fn(**fn_kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 584, in fit
+    call._call_and_handle_interrupt(
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/call.py", line 48, in _call_and_handle_interrupt
+    return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/launchers/subprocess_script.py", line 105, in launch
+    return function(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 630, in _fit_impl
+    self._run(model, ckpt_path=ckpt_path, weights_only=weights_only)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 1079, in _run
+    results = self._run_stage()
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 1123, in _run_stage
+    self.fit_loop.run()
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/fit_loop.py", line 217, in run
+    self.advance()
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/fit_loop.py", line 465, in advance
+    self.epoch_loop.run(self._data_fetcher)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 153, in run
+    self.advance(data_fetcher)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 352, in advance
+    batch_output = self.automatic_optimization.run(trainer.optimizers[0], batch_idx, kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 192, in run
+    self._optimizer_step(batch_idx, closure)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 270, in _optimizer_step
+    call._call_lightning_module_hook(
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/call.py", line 177, in _call_lightning_module_hook
+    output = fn(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/core/module.py", line 1368, in optimizer_step
+    optimizer.step(closure=optimizer_closure)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/core/optimizer.py", line 154, in step
+    step_output = self._strategy.optimizer_step(self._optimizer, closure, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/ddp.py", line 274, in optimizer_step
+    optimizer_output = super().optimizer_step(optimizer, closure, model, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 239, in optimizer_step
+    return self.precision_plugin.optimizer_step(optimizer, model=model, closure=closure, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/plugins/precision/precision.py", line 123, in optimizer_step
+    return optimizer.step(closure=closure, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/optim/lr_scheduler.py", line 166, in wrapper
+    return func.__get__(opt, opt.__class__)(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/optim/optimizer.py", line 526, in wrapper
+    out = func(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/optim/optimizer.py", line 81, in _use_grad
+    ret = func(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/optim/adam.py", line 227, in step
+    loss = closure()
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/plugins/precision/precision.py", line 109, in _wrap_closure
+    closure_result = closure()
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 146, in __call__
+    self._result = self.closure(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+    return func(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 131, in closure
+    step_output = self._step_fn()
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 319, in _training_step
+    training_step_output = call._call_strategy_hook(trainer, "training_step", *kwargs.values())
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/call.py", line 329, in _call_strategy_hook
+    output = fn(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 390, in training_step
+    return self._forward_redirection(self.model, self.lightning_module, "training_step", *args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 641, in __call__
+    wrapper_output = wrapper_module(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1666, in forward
+    else self._run_ddp_forward(*inputs, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1492, in _run_ddp_forward
+    return self.module(*inputs, **kwargs)  # type: ignore[index]
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 634, in wrapped_forward
+    out = method(*_args, **_kwargs)
+  File "/gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/pl_modules/promptmr_module.py", line 232, in training_step
+    raise ValueError(f'nan loss on {batch.fname} of slice {batch.slice_num}')
+ValueError: nan loss on ('Center001_UIH_30T_umr780_P050_cine_sax_slice9.npy',) of slice tensor([1], device='cuda:0')
+[rank0]: Traceback (most recent call last):
+[rank0]:   File "/gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/main.py", line 286, in <module>
+[rank0]:     run_cli()
+[rank0]:   File "/gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/main.py", line 280, in run_cli
+[rank0]:     cli = CustomLightningCLI(
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/cli.py", line 421, in __init__
+[rank0]:     self._run_subcommand(self.subcommand)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/cli.py", line 759, in _run_subcommand
+[rank0]:     fn(**fn_kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 584, in fit
+[rank0]:     call._call_and_handle_interrupt(
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/call.py", line 48, in _call_and_handle_interrupt
+[rank0]:     return trainer.strategy.launcher.launch(trainer_fn, *args, trainer=trainer, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/launchers/subprocess_script.py", line 105, in launch
+[rank0]:     return function(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 630, in _fit_impl
+[rank0]:     self._run(model, ckpt_path=ckpt_path, weights_only=weights_only)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 1079, in _run
+[rank0]:     results = self._run_stage()
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/trainer.py", line 1123, in _run_stage
+[rank0]:     self.fit_loop.run()
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/fit_loop.py", line 217, in run
+[rank0]:     self.advance()
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/fit_loop.py", line 465, in advance
+[rank0]:     self.epoch_loop.run(self._data_fetcher)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 153, in run
+[rank0]:     self.advance(data_fetcher)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/training_epoch_loop.py", line 352, in advance
+[rank0]:     batch_output = self.automatic_optimization.run(trainer.optimizers[0], batch_idx, kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 192, in run
+[rank0]:     self._optimizer_step(batch_idx, closure)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 270, in _optimizer_step
+[rank0]:     call._call_lightning_module_hook(
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/call.py", line 177, in _call_lightning_module_hook
+[rank0]:     output = fn(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/core/module.py", line 1368, in optimizer_step
+[rank0]:     optimizer.step(closure=optimizer_closure)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/core/optimizer.py", line 154, in step
+[rank0]:     step_output = self._strategy.optimizer_step(self._optimizer, closure, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/ddp.py", line 274, in optimizer_step
+[rank0]:     optimizer_output = super().optimizer_step(optimizer, closure, model, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 239, in optimizer_step
+[rank0]:     return self.precision_plugin.optimizer_step(optimizer, model=model, closure=closure, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/plugins/precision/precision.py", line 123, in optimizer_step
+[rank0]:     return optimizer.step(closure=closure, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/optim/lr_scheduler.py", line 166, in wrapper
+[rank0]:     return func.__get__(opt, opt.__class__)(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/optim/optimizer.py", line 526, in wrapper
+[rank0]:     out = func(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/optim/optimizer.py", line 81, in _use_grad
+[rank0]:     ret = func(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/optim/adam.py", line 227, in step
+[rank0]:     loss = closure()
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/plugins/precision/precision.py", line 109, in _wrap_closure
+[rank0]:     closure_result = closure()
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 146, in __call__
+[rank0]:     self._result = self.closure(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+[rank0]:     return func(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 131, in closure
+[rank0]:     step_output = self._step_fn()
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/loops/optimization/automatic.py", line 319, in _training_step
+[rank0]:     training_step_output = call._call_strategy_hook(trainer, "training_step", *kwargs.values())
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/trainer/call.py", line 329, in _call_strategy_hook
+[rank0]:     output = fn(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 390, in training_step
+[rank0]:     return self._forward_redirection(self.model, self.lightning_module, "training_step", *args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 641, in __call__
+[rank0]:     wrapper_output = wrapper_module(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1666, in forward
+[rank0]:     else self._run_ddp_forward(*inputs, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/parallel/distributed.py", line 1492, in _run_ddp_forward
+[rank0]:     return self.module(*inputs, **kwargs)  # type: ignore[index]
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
+[rank0]:     return self._call_impl(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
+[rank0]:     return forward_call(*args, **kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/conda/envs/PromptMR/lib/python3.10/site-packages/lightning/pytorch/strategies/strategy.py", line 634, in wrapped_forward
+[rank0]:     out = method(*_args, **_kwargs)
+[rank0]:   File "/gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/pl_modules/promptmr_module.py", line 232, in training_step
+[rank0]:     raise ValueError(f'nan loss on {batch.fname} of slice {batch.slice_num}')
+[rank0]: ValueError: nan loss on ('Center001_UIH_30T_umr780_P050_cine_sax_slice9.npy',) of slice tensor([1], device='cuda:0')
+[1;34mwandb[0m: 
+[1;34mwandb[0m: 🚀 View run [33mcine-npy-pmr-plus[0m at: [34m[0m
