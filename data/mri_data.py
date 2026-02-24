@@ -1040,12 +1040,11 @@ class FastmriSliceDataset(torch.utils.data.Dataset):
 class CineNpySliceDataset(torch.utils.data.Dataset):
     """
     A PyTorch Dataset for cine MRI data stored as .npy files with
-    precomputed masks and coil sensitivity maps.
+    precomputed undersampling masks.
 
-    Expects three directories of matching .npy files and a split JSON:
+    Expects two directories of matching .npy files and a split JSON:
     - ksp_dir: fully sampled k-space data with shape [T, C, H, W] (complex)
     - mask_dir: sampling masks with shape [T, H, W]
-    - sense_dir: coil sensitivity maps with shape [T, C, H, W] (complex)
     - split_json: JSON file with format {"train": ["id0", "id1"], "val": ["id2"]}
     """
 
@@ -1053,7 +1052,6 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
         self,
         ksp_dir: Union[str, Path, os.PathLike],
         mask_dir: Union[str, Path, os.PathLike],
-        sense_dir: Union[str, Path, os.PathLike],
         split_json: Union[str, Path, os.PathLike],
         split: str = "train",
         transform: Optional[Callable] = None,
@@ -1062,7 +1060,6 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
         super().__init__()
         self.ksp_dir = Path(ksp_dir)
         self.mask_dir = Path(mask_dir)
-        self.sense_dir = Path(sense_dir)
         self.transform = transform
         self.num_adj_slices = num_adj_slices
         self.start_adj = -(num_adj_slices // 2)
@@ -1074,13 +1071,12 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
         subject_ids = split_dict[split]
 
         # Build sample list
-        self.subjects = []  # list of (ksp_path, mask_path, sense_path, num_t)
+        self.subjects = []  # list of (ksp_path, mask_path, num_t)
         self.raw_samples = []  # flat list of RawDataSample for compatibility
         global_idx = 0
         for sid in sorted(subject_ids):
             ksp_path = self.ksp_dir / f"{sid}.npy"
             mask_path = self.mask_dir / f"{sid}.npy"
-            sense_path = self.sense_dir / f"{sid}.npy"
             if not ksp_path.exists():
                 logging.warning(f"Skipping {sid}: {ksp_path} not found")
                 continue
@@ -1088,7 +1084,7 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
             ksp_shape = np.load(str(ksp_path), mmap_mode='r').shape
             num_t = ksp_shape[0]
             subj_idx = len(self.subjects)
-            self.subjects.append((ksp_path, mask_path, sense_path, num_t))
+            self.subjects.append((ksp_path, mask_path, num_t))
             for ti in range(num_t):
                 self.raw_samples.append(
                     RawDataSample(ksp_path, global_idx, {"num_t": num_t, "subj_idx": subj_idx, "ti": ti})
@@ -1115,12 +1111,11 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
         _, _, metadata = self.raw_samples[idx]
         subj_idx = metadata["subj_idx"]
         ti = metadata["ti"]
-        ksp_path, mask_path, sense_path, num_t = self.subjects[subj_idx]
+        ksp_path, mask_path, num_t = self.subjects[subj_idx]
 
         # Load data (memory-mapped for efficiency)
         ksp_vol = np.load(str(ksp_path), mmap_mode='r')    # [T, C, H, W] complex
         mask_vol = np.load(str(mask_path), mmap_mode='r')   # [T, H, W]
-        sense_vol = np.load(str(sense_path), mmap_mode='r') # [T, C, H, W] complex
 
         # Get adjacent temporal frame indices
         ti_idx_list = self._get_ti_adj_idx_list(ti, num_t)
@@ -1128,16 +1123,14 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
         # Gather adjacent frames: concatenate along coil dimension
         kspace = np.concatenate([ksp_vol[t] for t in ti_idx_list], axis=0)       # [adj*C, H, W]
         mask = np.stack([mask_vol[t] for t in ti_idx_list], axis=0)              # [adj, H, W]
-        sens_maps = np.concatenate([sense_vol[t] for t in ti_idx_list], axis=0)  # [adj*C, H, W]
 
         # Make contiguous copies (mmap slices may not be contiguous)
         kspace = np.ascontiguousarray(kspace)
         mask = np.ascontiguousarray(mask)
-        sens_maps = np.ascontiguousarray(sens_maps)
 
         fname = ksp_path.stem
 
         if self.transform is None:
-            return kspace, mask, sens_maps, fname, ti, num_t
+            return kspace, mask, fname, ti, num_t
         else:
-            return self.transform(kspace, mask, sens_maps, fname, ti, num_t)
+            return self.transform(kspace, mask, fname, ti, num_t)

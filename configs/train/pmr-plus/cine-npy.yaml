@@ -3,16 +3,19 @@ data:
   init_args:
     ksp_dir: /gpfs/scrubbed/hanruish/cine_recon/datasets/cmr2025/training/FullySampled        # TODO: set to your k-space directory
     mask_dir: /gpfs/scrubbed/hanruish/cine_recon/datasets/cmr2025/training/Mask_Radial8       # TODO: set to your mask directory
-    sense_dir: /gpfs/scrubbed/hanruish/cine_recon/datasets/cmr2025/training/SenseMaps     # TODO: set to your sensitivity map directory
     split_json: /gpfs/scrubbed/hanruish/cine_recon/codes/baseline/split.json   # TODO: set to your split JSON file
     train_transform:
       class_path: data.CineNpyDataTransform
       init_args:
         num_adj_slices: &num_adj_slices 5
+        mask_type: kt_radial
+        num_low_frequencies: 24
     val_transform:
       class_path: data.CineNpyDataTransform
       init_args:
         num_adj_slices: *num_adj_slices
+        mask_type: kt_radial
+        num_low_frequencies: 24
     num_adj_slices: *num_adj_slices
     batch_size: 1
     distributed_sampler: true

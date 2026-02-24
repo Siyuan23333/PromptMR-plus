@@ -654,15 +654,23 @@ class CalgaryCampinasDataTransform:
 class CineNpyDataTransform:
     """
     Data Transformer for cine MRI data stored as .npy files with
-    precomputed masks and sensitivity maps.
+    precomputed undersampling masks. Sensitivity maps are estimated
+    by the model internally (same as other datasets).
     """
 
-    def __init__(self, num_adj_slices: int = 1):
+    def __init__(self, num_adj_slices: int = 1, mask_type: str = 'kt_radial',
+                 num_low_frequencies: int = 24):
         """
         Args:
             num_adj_slices: Number of adjacent temporal frames loaded per sample.
+            mask_type: Type of undersampling mask ('cartesian', 'kt_radial',
+                'poisson_disc'). Used by the model's ACS extractor.
+            num_low_frequencies: Size of the ACS (auto-calibration signal)
+                region used for sensitivity map estimation.
         """
         self.num_adj_slices = num_adj_slices
+        self.mask_type = mask_type
+        self.num_low_frequencies = num_low_frequencies
         # Set mask_func to None so worker_init_fn in data_module doesn't error
         self.mask_func = None
 
@@ -670,7 +678,6 @@ class CineNpyDataTransform:
         self,
         kspace: np.ndarray,
         mask: np.ndarray,
-        sens_maps_np: np.ndarray,
         fname: str,
         slice_num: int,
         num_t: int,
@@ -679,34 +686,16 @@ class CineNpyDataTransform:
         Args:
             kspace: Fully-sampled k-space, shape [adj*C, H, W] complex.
             mask: Sampling mask, shape [adj, H, W] float/bool.
-            sens_maps_np: Coil sensitivity maps, shape [adj*C, H, W] complex.
             fname: File name (subject id).
             slice_num: Temporal frame index.
             num_t: Total number of temporal frames.
 
         Returns:
-            A PromptMRSample with masked k-space, mask, target, and
-            precomputed sensitivity maps.
+            A PromptMRSample with masked k-space, mask, and target.
+            Sensitivity maps are not included; the model estimates them.
         """
         num_adj = self.num_adj_slices
         num_coils = kspace.shape[0] // num_adj
-
-        # --- DEBUG: check raw inputs ---
-        _debug_tag = f"[CineNpyTransform {fname} t={slice_num}]"
-        if np.any(np.isnan(kspace)):
-            logger.warning(f"{_debug_tag} NaN in raw kspace! shape={kspace.shape}")
-        if np.any(np.isinf(kspace)):
-            logger.warning(f"{_debug_tag} Inf in raw kspace! shape={kspace.shape}")
-        if np.any(np.isnan(sens_maps_np)):
-            logger.warning(f"{_debug_tag} NaN in raw sens_maps! shape={sens_maps_np.shape}")
-        if np.any(np.isinf(sens_maps_np)):
-            logger.warning(f"{_debug_tag} Inf in raw sens_maps! shape={sens_maps_np.shape}")
-        logger.info(f"{_debug_tag} kspace shape={kspace.shape} dtype={kspace.dtype} "
-                     f"abs range=[{np.abs(kspace).min():.6e}, {np.abs(kspace).max():.6e}]")
-        logger.info(f"{_debug_tag} mask shape={mask.shape} dtype={mask.dtype} "
-                     f"sum={mask.sum()}/{mask.size} ({mask.sum()/mask.size*100:.1f}%)")
-        logger.info(f"{_debug_tag} sens shape={sens_maps_np.shape} dtype={sens_maps_np.dtype} "
-                     f"abs range=[{np.abs(sens_maps_np).min():.6e}, {np.abs(sens_maps_np).max():.6e}]")
 
         # Convert kspace to tensor: [adj*C, H, W, 2]
         kspace_torch = to_tensor(kspace).float()
@@ -716,35 +705,7 @@ class CineNpyDataTransform:
         mask_torch = torch.from_numpy(mask_expanded.astype(np.float32)).unsqueeze(-1)  # [adj*C, H, W, 1]
 
         # Apply mask to get undersampled k-space
-        masked_kspace = kspace_torch * mask_torch
-
-        # --- DEBUG: check masked kspace ---
-        if torch.isnan(masked_kspace).any():
-            logger.warning(f"{_debug_tag} NaN in masked_kspace!")
-        if torch.isinf(masked_kspace).any():
-            logger.warning(f"{_debug_tag} Inf in masked_kspace!")
-
-        # Convert sensitivity maps to tensor: [adj*C, H, W, 2]
-        sens_maps_torch = to_tensor(sens_maps_np).float()
-
-        # Normalize sensitivity maps: divide by RSS across coils per adj frame
-        # Reshape to [adj, C, H, W, 2], compute RSS over C, reshape back
-        sens_reshaped = sens_maps_torch.view(num_adj, num_coils, *sens_maps_torch.shape[1:])
-        rss_norm = rss_complex(sens_reshaped, dim=1).unsqueeze(1).unsqueeze(-1)  # [adj, 1, H, W, 1]
-
-        # --- DEBUG: check rss_norm before clamp ---
-        logger.info(f"{_debug_tag} sens rss_norm range=[{rss_norm.min():.6e}, {rss_norm.max():.6e}] "
-                     f"zeros={(rss_norm == 0).sum().item()}/{rss_norm.numel()}")
-
-        rss_norm = rss_norm.clamp(min=1e-8)
-        sens_reshaped = sens_reshaped / rss_norm
-        sens_maps_torch = sens_reshaped.view(num_adj * num_coils, *sens_maps_torch.shape[1:])
-
-        # --- DEBUG: check normalized sens maps ---
-        if torch.isnan(sens_maps_torch).any():
-            logger.warning(f"{_debug_tag} NaN in normalized sens_maps!")
-        if torch.isinf(sens_maps_torch).any():
-            logger.warning(f"{_debug_tag} Inf in normalized sens_maps!")
+        masked_kspace = kspace_torch * mask_torch + 0.0  # +0.0 removes sign of zeros
 
         # Compute target: RSS of IFFT(fully-sampled kspace) for center frame
         center = num_adj // 2
@@ -753,28 +714,20 @@ class CineNpyDataTransform:
         target = rss_complex(center_images, dim=0)  # [H, W]
         max_value = target.max().item()
 
-        # --- DEBUG: check target and max_value ---
-        logger.info(f"{_debug_tag} target range=[{target.min():.6e}, {target.max():.6e}] max_value={max_value:.6e}")
-        if max_value == 0.0:
-            logger.warning(f"{_debug_tag} max_value is ZERO! This will cause NaN in SSIM loss.")
-        if torch.isnan(target).any():
-            logger.warning(f"{_debug_tag} NaN in target!")
-
         crop_size = (kspace.shape[-2], kspace.shape[-1])  # (H, W)
 
         sample = PromptMRSample(
             masked_kspace=masked_kspace,
             mask=mask_torch.to(torch.bool),
-            num_low_frequencies=0,
+            num_low_frequencies=self.num_low_frequencies,
             target=target,
             fname=fname,
             slice_num=slice_num,
             max_value=max_value,
             crop_size=crop_size,
-            mask_type='cine_npy',
+            mask_type=self.mask_type,
             num_t=num_t,
             num_slc=-1,
-            sens_maps=sens_maps_torch,
         )
 
         return sample

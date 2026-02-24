@@ -366,21 +366,20 @@ class InferenceDataModule(L.LightningDataModule):
 
 
 #########################################################################################################
-# Cine NPY DataModule (precomputed mask and sensitivity maps)
+# Cine NPY DataModule (precomputed masks, model-estimated sensitivity maps)
 #########################################################################################################
 
 
 class CineNpyDataModule(L.LightningDataModule):
     """
     DataModule for cine MRI data stored as .npy files with precomputed
-    masks and sensitivity maps.
+    undersampling masks. Sensitivity maps are estimated by the model.
     """
 
     def __init__(
         self,
         ksp_dir: str,
         mask_dir: str,
-        sense_dir: str,
         split_json: str,
         train_transform: Callable,
         val_transform: Callable,
@@ -392,7 +391,6 @@ class CineNpyDataModule(L.LightningDataModule):
         super().__init__()
         self.ksp_dir = ksp_dir
         self.mask_dir = mask_dir
-        self.sense_dir = sense_dir
         self.split_json = split_json
         self.train_transform = train_transform
         self.val_transform = val_transform
@@ -406,7 +404,6 @@ class CineNpyDataModule(L.LightningDataModule):
         return CineNpySliceDataset(
             ksp_dir=self.ksp_dir,
             mask_dir=self.mask_dir,
-            sense_dir=self.sense_dir,
             split_json=self.split_json,
             split=split,
             transform=transform,

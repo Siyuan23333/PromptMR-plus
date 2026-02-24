@@ -3,16 +3,19 @@ data:
   init_args:
     ksp_dir: /path/to/ksp_dir        # TODO: set to your k-space directory
     mask_dir: /path/to/mask_dir       # TODO: set to your mask directory
-    sense_dir: /path/to/sense_dir     # TODO: set to your sensitivity map directory
     split_json: /path/to/split.json   # TODO: set to your split JSON file (val split used for inference)
     train_transform:
       class_path: data.CineNpyDataTransform
       init_args:
         num_adj_slices: &num_adj_slices 5
+        mask_type: kt_radial
+        num_low_frequencies: 24
     val_transform:
       class_path: data.CineNpyDataTransform
       init_args:
         num_adj_slices: *num_adj_slices
+        mask_type: kt_radial
+        num_low_frequencies: 24
     num_adj_slices: *num_adj_slices
     batch_size: 1
     distributed_sampler: true
