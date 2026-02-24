@@ -1,11 +1,14 @@
+import logging
 import torch
 from data import transforms
 from pl_modules import MriModule
 from typing import List
-import copy 
+import copy
 from mri_utils import SSIMLoss
 import torch.nn.functional as F
 import importlib
+
+logger = logging.getLogger(__name__)
 
 def get_model_class(module_name, class_name="PromptMR"):
     """
@@ -169,11 +172,40 @@ class PromptMrModule(MriModule):
         return self.promptmr(masked_kspace, mask, num_low_frequencies, mask_type, use_checkpoint=use_checkpoint, compute_sens_per_coil=compute_sens_per_coil, precomputed_sens_maps=precomputed_sens_maps)
 
     def training_step(self, batch, batch_idx):
+        _tag = f"[train step={self.global_step} batch={batch_idx} {batch.fname} slice={batch.slice_num}]"
+
+        # --- DEBUG: check batch inputs ---
+        if torch.isnan(batch.masked_kspace).any():
+            logger.warning(f"{_tag} NaN in batch.masked_kspace")
+        if torch.isinf(batch.masked_kspace).any():
+            logger.warning(f"{_tag} Inf in batch.masked_kspace")
+        if torch.isnan(batch.target).any():
+            logger.warning(f"{_tag} NaN in batch.target")
+        logger.info(f"{_tag} masked_kspace shape={batch.masked_kspace.shape} "
+                     f"abs range=[{batch.masked_kspace.abs().min():.4e}, {batch.masked_kspace.abs().max():.4e}]")
+        logger.info(f"{_tag} mask shape={batch.mask.shape} dtype={batch.mask.dtype} "
+                     f"sum={batch.mask.sum().item()}/{batch.mask.numel()}")
+        logger.info(f"{_tag} target shape={batch.target.shape} "
+                     f"range=[{batch.target.min():.4e}, {batch.target.max():.4e}] "
+                     f"max_value={batch.max_value}")
+
         precomputed_sens = getattr(batch, 'sens_maps', None)
+        if precomputed_sens is not None:
+            logger.info(f"{_tag} precomputed_sens shape={precomputed_sens.shape} "
+                         f"has_nan={torch.isnan(precomputed_sens).any().item()} "
+                         f"has_inf={torch.isinf(precomputed_sens).any().item()} "
+                         f"abs range=[{precomputed_sens.abs().min():.4e}, {precomputed_sens.abs().max():.4e}]")
+
         output_dict = self(batch.masked_kspace, batch.mask, batch.num_low_frequencies, batch.mask_type,
                            use_checkpoint=self.use_checkpoint, compute_sens_per_coil=self.compute_sens_per_coil,
                            precomputed_sens_maps=precomputed_sens)
         output = output_dict['img_pred']
+
+        # --- DEBUG: check model output ---
+        logger.info(f"{_tag} img_pred range=[{output.min():.4e}, {output.max():.4e}] "
+                     f"has_nan={torch.isnan(output).any().item()} "
+                     f"has_inf={torch.isinf(output).any().item()}")
+
         target, output = transforms.center_crop_to_smallest(
             batch.target, output)
 
@@ -182,8 +214,17 @@ class PromptMrModule(MriModule):
         )
         self.log("train_loss", loss, prog_bar=True)
 
+        # --- DEBUG: log loss value ---
+        logger.info(f"{_tag} loss={loss.item():.6e}")
+
         ##! raise error if loss is nan
         if torch.isnan(loss):
+            logger.error(f"{_tag} NaN loss detected! Dumping details:")
+            logger.error(f"  output: range=[{output.min():.4e}, {output.max():.4e}] "
+                         f"nan={torch.isnan(output).any()} inf={torch.isinf(output).any()}")
+            logger.error(f"  target: range=[{target.min():.4e}, {target.max():.4e}] "
+                         f"nan={torch.isnan(target).any()} inf={torch.isinf(target).any()}")
+            logger.error(f"  data_range: {batch.max_value}")
             raise ValueError(f'nan loss on {batch.fname} of slice {batch.slice_num}')
         return loss
 

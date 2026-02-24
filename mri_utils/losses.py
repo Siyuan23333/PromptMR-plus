@@ -5,9 +5,12 @@ This source code is licensed under the MIT license found in the
 LICENSE file in the root directory of this source tree.
 """
 
+import logging
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+logger = logging.getLogger(__name__)
 
 
 class SSIMLoss(nn.Module):
@@ -38,6 +41,18 @@ class SSIMLoss(nn.Module):
     ):
         assert isinstance(self.w, torch.Tensor)
 
+        # --- DEBUG: check inputs ---
+        if (data_range == 0).any():
+            logger.warning(f"[SSIMLoss] data_range has zeros: {data_range.flatten().tolist()}")
+        if torch.isnan(X).any():
+            logger.warning(f"[SSIMLoss] NaN in X (prediction)! shape={X.shape}")
+        if torch.isnan(Y).any():
+            logger.warning(f"[SSIMLoss] NaN in Y (target)! shape={Y.shape}")
+        if torch.isinf(X).any():
+            logger.warning(f"[SSIMLoss] Inf in X (prediction)!")
+        if torch.isinf(Y).any():
+            logger.warning(f"[SSIMLoss] Inf in Y (target)!")
+
         data_range = data_range[:, None, None, None]
         C1 = (self.k1 * data_range) ** 2
         C2 = (self.k2 * data_range) ** 2
@@ -57,7 +72,13 @@ class SSIMLoss(nn.Module):
         )
         D = B1 * B2
         S = (A1 * A2) / D
-        
+
+        # --- DEBUG: check SSIM computation ---
+        if torch.isnan(S).any():
+            logger.warning(f"[SSIMLoss] NaN in SSIM map! "
+                           f"D min={D.min():.4e} D_has_zero={(D==0).any().item()} "
+                           f"C1={C1.flatten().tolist()} C2={C2.flatten().tolist()}")
+
         if reduced:
             return 1 - S.mean()
         else:

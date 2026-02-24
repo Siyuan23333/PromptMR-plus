@@ -1,6 +1,7 @@
 """
 This file contains one implementation of the PromptMR+ model. default is v2.
 """
+import logging
 import math
 from typing import List, Optional, Tuple, Union
 import torch
@@ -9,6 +10,8 @@ import torch.nn.functional as F
 from einops import rearrange
 from mri_utils import ifft2c, complex_mul, rss, complex_abs, rss_complex, sens_expand, sens_reduce
 from .utils import KspaceACSExtractor, conv, CAB, DownBlock, UpBlock, SkipBlock, PromptBlock
+
+logger = logging.getLogger(__name__)
 
 
 class PromptUnet(nn.Module):
@@ -171,6 +174,15 @@ class NormPromptUnet(nn.Module):
         mean = x.mean(dim=1).view(b, 1, 1, 1)
         std = x.std(dim=1).view(b, 1, 1, 1)
 
+        # --- DEBUG: check for zero std ---
+        if (std == 0).any():
+            logger.warning(f"[NormPromptUnet.norm] Zero std detected! "
+                           f"input shape=({b},{c},{h},{w}) "
+                           f"mean={mean.flatten().tolist()} std={std.flatten().tolist()}")
+        if torch.isnan(std).any():
+            logger.warning(f"[NormPromptUnet.norm] NaN std! input has_nan={torch.isnan(x).any().item()}")
+        std = std.clamp(min=1e-12)
+
         x = x.view(b, c, h, w)
         return (x - mean) / std, mean, std
 
@@ -243,15 +255,30 @@ class PromptMRBlock(nn.Module):
     ):
         zero = torch.zeros(1, 1, 1, 1, 1).to(current_img)
         current_kspace = sens_expand(current_img, sens_maps, self.num_adj_slices)
+
+        # --- DEBUG: check DC step intermediates ---
+        if torch.isnan(current_kspace).any():
+            logger.warning(f"[PromptMRBlock] NaN in current_kspace after sens_expand!")
+
         ffx = sens_reduce(torch.where(mask, current_kspace, zero), sens_maps, self.num_adj_slices)
+
+        if torch.isnan(ffx).any():
+            logger.warning(f"[PromptMRBlock] NaN in ffx after sens_reduce!")
+
         if self.model.n_buffer > 0:
             # adaptive input. buffer: A^H*A*x_i, s_i, x0, A^H*A*x_i-x0
             buffer = torch.cat([ffx] + [latent]*(self.model.n_buffer-3) + [img_zf, ffx-img_zf], dim=1)
         else:
             buffer = None
-            
+
         soft_dc = (ffx - img_zf) * self.dc_weight
         model_term, latent, history_feat = self.model(current_img, history_feat, buffer)
+
+        if torch.isnan(model_term).any():
+            logger.warning(f"[PromptMRBlock] NaN in model_term from NormPromptUnet!")
+        if torch.isnan(soft_dc).any():
+            logger.warning(f"[PromptMRBlock] NaN in soft_dc! dc_weight={self.dc_weight.item():.4e}")
+
         img_pred = current_img - soft_dc - model_term
         return img_pred, latent, history_feat
 
@@ -368,23 +395,56 @@ class PromptMR(nn.Module):
         else:
             sens_maps = self.sens_net(masked_kspace, mask, num_low_frequencies, mask_type, compute_sens_per_coil)
 
+        # --- DEBUG: check sens_maps ---
+        if torch.isnan(sens_maps).any():
+            logger.warning(f"[PromptMR.forward] NaN in sens_maps! "
+                           f"precomputed={precomputed_sens_maps is not None}")
+        if torch.isinf(sens_maps).any():
+            logger.warning(f"[PromptMR.forward] Inf in sens_maps!")
+        logger.info(f"[PromptMR.forward] sens_maps shape={sens_maps.shape} "
+                     f"abs range=[{sens_maps.abs().min():.4e}, {sens_maps.abs().max():.4e}]")
+        logger.info(f"[PromptMR.forward] masked_kspace shape={masked_kspace.shape} "
+                     f"mask shape={mask.shape} mask dtype={mask.dtype}")
+
         img_zf = sens_reduce(masked_kspace, sens_maps, self.num_adj_slices)
+
+        # --- DEBUG: check img_zf ---
+        if torch.isnan(img_zf).any():
+            logger.warning(f"[PromptMR.forward] NaN in img_zf after sens_reduce!")
+        logger.info(f"[PromptMR.forward] img_zf shape={img_zf.shape} "
+                     f"abs range=[{img_zf.abs().min():.4e}, {img_zf.abs().max():.4e}]")
+
         img_pred = img_zf.clone()
         latent = img_zf.clone()
         history_feat = None
 
-        for cascade in self.cascades:
+        for ci, cascade in enumerate(self.cascades):
             if use_checkpoint:  # and self.training:
                 img_pred, latent, history_feat = torch.utils.checkpoint.checkpoint(
                     cascade, img_pred, img_zf, latent, mask, sens_maps, history_feat, use_reentrant=False)
             else:
                 img_pred, latent, history_feat = cascade(img_pred, img_zf, latent, mask, sens_maps, history_feat)
 
+            # --- DEBUG: check after each cascade ---
+            if torch.isnan(img_pred).any():
+                logger.warning(f"[PromptMR.forward] NaN in img_pred after cascade {ci}!")
+            if torch.isinf(img_pred).any():
+                logger.warning(f"[PromptMR.forward] Inf in img_pred after cascade {ci}!")
+            if ci == 0 or torch.isnan(img_pred).any():
+                logger.info(f"[PromptMR.forward] cascade {ci}: img_pred abs range="
+                             f"[{img_pred.abs().min():.4e}, {img_pred.abs().max():.4e}]")
+
         # get central slice of rss as final output
         img_pred = torch.chunk(img_pred, self.num_adj_slices, dim=1)[self.center_slice]
         sens_maps = torch.chunk(sens_maps, self.num_adj_slices, dim=1)[self.center_slice]
         img_pred = rss(complex_abs(complex_mul(img_pred, sens_maps)), dim=1)
-            
+
+        # --- DEBUG: check final output ---
+        if torch.isnan(img_pred).any():
+            logger.warning(f"[PromptMR.forward] NaN in final img_pred!")
+        logger.info(f"[PromptMR.forward] final img_pred shape={img_pred.shape} "
+                     f"range=[{img_pred.min():.4e}, {img_pred.max():.4e}]")
+
         # prepare for additional output
         img_zf = torch.chunk(masked_kspace, self.num_adj_slices, dim=1)[self.center_slice]
         img_zf = rss(complex_abs(ifft2c(img_zf)), dim=1)
@@ -458,7 +518,15 @@ class SensitivityModel(nn.Module):
         b, adj_coil, h, w, two = x.shape
         coil = adj_coil//self.num_adj_slices
         x = x.view(b, self.num_adj_slices, coil, h, w, two)
-        x = x / rss_complex(x, dim=2).unsqueeze(-1).unsqueeze(2)
+        rss_val = rss_complex(x, dim=2).unsqueeze(-1).unsqueeze(2)
+
+        # --- DEBUG: check for zero RSS ---
+        num_zeros = (rss_val == 0).sum().item()
+        if num_zeros > 0:
+            logger.warning(f"[SensitivityModel.divide_rss] {num_zeros}/{rss_val.numel()} zeros in RSS denominator!")
+        rss_val = rss_val.clamp(min=1e-12)
+
+        x = x / rss_val
 
         return x.view(b, adj_coil, h, w, two)
 
