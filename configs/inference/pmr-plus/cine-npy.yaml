@@ -31,7 +31,7 @@ data:
 seed_everything: 42
 trainer:
   accelerator: gpu
-  strategy: ddp
+  strategy: ddp_find_unused_parameters_true
   devices: 1
   num_nodes: 1
   logger: false
