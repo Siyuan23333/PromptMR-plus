@@ -733,6 +733,16 @@ class CineNpyDataTransform:
         kspace_torch   = to_tensor(kspace).float()      # (num_adj*C, H, W, 2)
         sens_map_torch = to_tensor(sens_map).float()    # (num_adj*C, H, W, 2)
 
+        # RSS-normalize sensitivity maps per temporal frame so that
+        # ||S_coils||_rss = 1 at each pixel, matching the SensitivityModel
+        # output convention (see divide_root_sum_of_squares).
+        sens_map_torch = sens_map_torch.view(
+            num_adj, C, *sens_map_torch.shape[1:]       # (num_adj, C, H, W, 2)
+        )
+        rss_norm = rss_complex(sens_map_torch, dim=1)   # (num_adj, H, W)
+        sens_map_torch = sens_map_torch / (rss_norm.unsqueeze(-1).unsqueeze(1) + 1e-12)
+        sens_map_torch = sens_map_torch.view(-1, *sens_map_torch.shape[2:])  # (num_adj*C, H, W, 2)
+
         # Mask: (H, W) -> (1, H, W, 1) for broadcasting over (C, H, W, 2)
         mask_torch = torch.from_numpy(mask.astype(np.float32))
         if mask_torch.ndim == 2:
