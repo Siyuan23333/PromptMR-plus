@@ -38,7 +38,7 @@ data:
 
 # dataset specific settings
 trainer:
-  strategy: ddp
+  strategy: ddp_find_unused_parameters_true
   devices: 2
   num_nodes: 1
   max_epochs: 12
