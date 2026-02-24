@@ -373,27 +373,22 @@ class CineNpyDataModule(L.LightningDataModule):
     """
     DataModule for cine MRI data stored as .npy files.
 
-    Expects a single data directory with ksp/, mask/, sense/ sub-directories
-    and a split.json file defining train/val splits by filename stems.
-
-    Directory layout:
-        data_path/
-            ksp/subject001.npy, subject002.npy, ...
-            mask/subject001.npy, subject002.npy, ...
-            sense/subject001.npy, subject002.npy, ...
-            split.json  (or specified via split_json parameter)
+    Paths to each data directory and the split file are set independently:
+        ksp_dir:    /path/to/kspace/*.npy      (shape [T, C, H, W], complex)
+        mask_dir:   /path/to/masks/*.npy       (shape [T, H, W])
+        sense_dir:  /path/to/sensemaps/*.npy   (shape [T, C, H, W], complex)
+        split_json: /path/to/split.json        {"train": ["stem1", ...], "val": [...]}
     """
 
     def __init__(
         self,
-        data_path: Path,
+        ksp_dir: str,
+        mask_dir: str,
+        sense_dir: str,
+        split_json: str,
         train_transform: Callable,
         val_transform: Callable,
         challenge: str = "multicoil",
-        split_json: Optional[str] = None,
-        ksp_dir: str = "ksp",
-        mask_dir: str = "mask",
-        sense_dir: str = "sense",
         sample_rate: Optional[float] = None,
         val_sample_rate: Optional[float] = None,
         volume_sample_rate: Optional[float] = None,
@@ -410,14 +405,13 @@ class CineNpyDataModule(L.LightningDataModule):
         super().__init__()
         from data import CineNpySliceDataset
         self.slice_dataset = CineNpySliceDataset
-        self.data_path = Path(data_path)
         self.challenge = challenge
         self.train_transform = train_transform
         self.val_transform = val_transform
-        self.split_json = split_json or str(self.data_path / "split.json")
         self.ksp_dir = ksp_dir
         self.mask_dir = mask_dir
         self.sense_dir = sense_dir
+        self.split_json = split_json
         self.sample_rate = sample_rate
         self.val_sample_rate = val_sample_rate
         self.volume_sample_rate = volume_sample_rate
@@ -446,7 +440,9 @@ class CineNpyDataModule(L.LightningDataModule):
             raw_sample_filter = self.val_filter
 
         dataset = self.slice_dataset(
-            root=self.data_path,
+            ksp_dir=self.ksp_dir,
+            mask_dir=self.mask_dir,
+            sense_dir=self.sense_dir,
             challenge=self.challenge,
             transform=data_transform,
             sample_rate=sample_rate,
@@ -455,9 +451,6 @@ class CineNpyDataModule(L.LightningDataModule):
             raw_sample_filter=raw_sample_filter,
             data_balancer=self.data_balancer if is_train else None,
             num_adj_slices=self.num_adj_slices,
-            ksp_dir=self.ksp_dir,
-            mask_dir=self.mask_dir,
-            sense_dir=self.sense_dir,
             split_json=self.split_json,
             split=data_partition,
         )

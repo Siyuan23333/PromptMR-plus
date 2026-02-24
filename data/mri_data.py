@@ -1053,7 +1053,9 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
 
     def __init__(
         self,
-        root: Union[str, Path, os.PathLike],
+        ksp_dir: Union[str, Path, os.PathLike],
+        mask_dir: Union[str, Path, os.PathLike],
+        sense_dir: Union[str, Path, os.PathLike],
         challenge: str,
         transform: Optional[Callable] = None,
         use_dataset_cache: bool = False,
@@ -1064,15 +1066,14 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
         raw_sample_filter: Optional[Callable] = None,
         data_balancer: Optional[Callable] = None,
         num_adj_slices: int = 5,
-        ksp_dir: str = "ksp",
-        mask_dir: str = "mask",
-        sense_dir: str = "sense",
         split_json: Optional[str] = None,
         split: Optional[str] = None,
     ):
         """
         Args:
-            root: Base path containing ksp_dir, mask_dir, sense_dir sub-directories.
+            ksp_dir: Absolute path to the k-space .npy directory.
+            mask_dir: Absolute path to the mask .npy directory.
+            sense_dir: Absolute path to the sensitivity map .npy directory.
             challenge: "singlecoil" or "multicoil".
             transform: Optional transform applied to each sample.
             use_dataset_cache: Whether to cache dataset metadata to pickle.
@@ -1083,20 +1084,20 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
             raw_sample_filter: Optional filter on RawDataSample.
             data_balancer: Optional balancer for training set.
             num_adj_slices: Number of adjacent temporal frames (must be odd).
-            ksp_dir: Name of the k-space sub-directory under root.
-            mask_dir: Name of the mask sub-directory under root.
-            sense_dir: Name of the sensitivity map sub-directory under root.
             split_json: Path to split JSON. If provided, only files listed under
                 the matching split ("train" or "val") are used.
             split: Explicit split name ("train", "val", "test"). If None, inferred
-                from root path.
+                from ksp_dir path.
         """
-        self.root = Path(root)
+        self.ksp_dir = Path(ksp_dir)
+        self.mask_dir = Path(mask_dir)
+        self.sense_dir = Path(sense_dir)
+
         if split is not None:
             self._split = split
-        elif 'train' in str(root):
+        elif 'train' in str(ksp_dir):
             self._split = 'train'
-        elif 'val' in str(root):
+        elif 'val' in str(ksp_dir):
             self._split = 'val'
         else:
             self._split = 'test'
@@ -1115,10 +1116,6 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
         self.num_adj_slices = num_adj_slices
         self.start_adj = -(num_adj_slices // 2)
         self.end_adj = num_adj_slices // 2 + 1
-
-        self.ksp_dir = self.root / ksp_dir
-        self.mask_dir = self.root / mask_dir
-        self.sense_dir = self.root / sense_dir
 
         self.raw_samples: List[RawDataSample] = []
         if raw_sample_filter is None:
@@ -1150,7 +1147,7 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
         else:
             dataset_cache = {}
 
-        cache_key = str(self.root) + "_" + self._split
+        cache_key = str(self.ksp_dir) + "_" + self._split
         if dataset_cache.get(cache_key) is None or not use_dataset_cache:
             for fname in sorted(files):
                 # Peek at the shape without loading the full array
@@ -1179,7 +1176,7 @@ class CineNpySliceDataset(torch.utils.data.Dataset):
             logging.info("Using dataset cache from %s.", self.dataset_cache_file)
             self.raw_samples = dataset_cache[cache_key]
 
-        if 'train' in str(root) and data_balancer is not None:
+        if self._split == 'train' and data_balancer is not None:
             self.raw_samples = data_balancer(self.raw_samples)
 
         # subsample if desired

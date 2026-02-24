@@ -1,11 +1,10 @@
 # Training config for cine MRI data in .npy format
 #
-# Directory layout expected:
-#   data_path/
-#     ksp/subject001.npy, subject002.npy, ...    # k-space [T, C, H, W] complex
-#     mask/subject001.npy, subject002.npy, ...   # masks [T, H, W]
-#     sense/subject001.npy, subject002.npy, ...  # sensitivity maps [T, C, H, W] complex
-#     split.json                                 # {"train": ["subject001", ...], "val": ["subject003", ...]}
+# Data files expected:
+#   ksp_dir/   : subject001.npy, subject002.npy, ...    # k-space [T, C, H, W] complex
+#   mask_dir/  : subject001.npy, subject002.npy, ...    # masks [T, H, W]
+#   sense_dir/ : subject001.npy, subject002.npy, ...    # sensitivity maps [T, C, H, W] complex
+#   split_json : {"train": ["subject001", ...], "val": ["subject003", ...]}
 #
 # Usage:
 #   python main.py fit --config configs/base.yaml --config configs/model/pmr-plus.yaml --config configs/train/pmr-plus/cine-npy.yaml
@@ -13,12 +12,11 @@
 data:
   class_path: pl_modules.CineNpyDataModule
   init_args:
-    data_path: /path/to/your/cine_data  # base directory containing ksp/, mask/, sense/, split.json
+    ksp_dir: /path/to/kspace          # directory with fully-sampled k-space .npy files
+    mask_dir: /path/to/masks           # directory with sampling mask .npy files
+    sense_dir: /path/to/sensemaps      # directory with coil sensitivity map .npy files
+    split_json: /path/to/split.json    # train/val split file
     challenge: multicoil
-    split_json: null  # defaults to data_path/split.json; set to override
-    ksp_dir: ksp
-    mask_dir: mask
-    sense_dir: sense
     train_transform:
       class_path: data.CineNpyDataTransform
       init_args:
