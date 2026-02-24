@@ -165,12 +165,14 @@ class PromptMrModule(MriModule):
         )
         return [optim], [scheduler]
     
-    def forward(self, masked_kspace, mask, num_low_frequencies, mask_type="cartesian", use_checkpoint=False, compute_sens_per_coil=False):
-        return self.promptmr(masked_kspace, mask, num_low_frequencies, mask_type, use_checkpoint=use_checkpoint, compute_sens_per_coil=compute_sens_per_coil)   
+    def forward(self, masked_kspace, mask, num_low_frequencies, mask_type="cartesian", use_checkpoint=False, compute_sens_per_coil=False, precomputed_sens_maps=None):
+        return self.promptmr(masked_kspace, mask, num_low_frequencies, mask_type, use_checkpoint=use_checkpoint, compute_sens_per_coil=compute_sens_per_coil, precomputed_sens_maps=precomputed_sens_maps)
 
     def training_step(self, batch, batch_idx):
+        precomputed_sens = getattr(batch, 'sens_maps', None)
         output_dict = self(batch.masked_kspace, batch.mask, batch.num_low_frequencies, batch.mask_type,
-                           use_checkpoint=self.use_checkpoint, compute_sens_per_coil=self.compute_sens_per_coil)
+                           use_checkpoint=self.use_checkpoint, compute_sens_per_coil=self.compute_sens_per_coil,
+                           precomputed_sens_maps=precomputed_sens)
         output = output_dict['img_pred']
         target, output = transforms.center_crop_to_smallest(
             batch.target, output)
@@ -193,9 +195,10 @@ class PromptMrModule(MriModule):
             self.log("grad_norm", grad_norm)
 
     def validation_step(self, batch, batch_idx):
-
+        precomputed_sens = getattr(batch, 'sens_maps', None)
         output_dict = self(batch.masked_kspace, batch.mask, batch.num_low_frequencies, batch.mask_type,
-                           compute_sens_per_coil=self.compute_sens_per_coil)
+                           compute_sens_per_coil=self.compute_sens_per_coil,
+                           precomputed_sens_maps=precomputed_sens)
         output = output_dict['img_pred']
         img_zf = output_dict['img_zf']
         target, output = transforms.center_crop_to_smallest(
@@ -222,8 +225,10 @@ class PromptMrModule(MriModule):
         }
 
     def predict_step(self, batch, batch_idx, dataloader_idx=0):
+        precomputed_sens = getattr(batch, 'sens_maps', None)
         output_dict = self(batch.masked_kspace, batch.mask, batch.num_low_frequencies, batch.mask_type,
-                           compute_sens_per_coil=self.compute_sens_per_coil)
+                           compute_sens_per_coil=self.compute_sens_per_coil,
+                           precomputed_sens_maps=precomputed_sens)
         output = output_dict['img_pred']
 
         crop_size = batch.crop_size 

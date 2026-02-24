@@ -16,7 +16,7 @@ from lightning.pytorch.cli import LightningCLI, SaveConfigCallback
 from lightning.pytorch.callbacks import BasePredictionWriter, Callback
 from lightning.pytorch.utilities.rank_zero import rank_zero_only
 
-from mri_utils import save_reconstructions
+from mri_utils import save_reconstructions, save_reconstructions_npy
 
 @rank_zero_only
 def print_on_rank0(*args, **kwargs):
@@ -232,6 +232,50 @@ class CustomWriter(BasePredictionWriter):
         # # Save the reconstructions
         save_reconstructions(outputs, num_slc_dict, self.output_dir / "reconstructions")
         print(f"Done! Reconstructions saved to {self.output_dir / 'reconstructions'}")
+
+
+class NpyCustomWriter(BasePredictionWriter):
+    """
+    A custom prediction writer to save reconstructions as .npy files.
+    Used for cine MRI data with precomputed masks and sensitivity maps.
+    """
+
+    def __init__(self, output_dir: Path, write_interval):
+        super().__init__(write_interval)
+        self.output_dir = Path(output_dir)
+
+    def write_on_batch_end(self, trainer, pl_module, prediction, batch_indices, batch, batch_idx, dataloader_idx):
+        pass
+
+    def write_on_epoch_end(self, trainer, pl_module, predictions, batch_indices):
+        gathered = [None] * torch.distributed.get_world_size()
+        gathered_indices = [None] * torch.distributed.get_world_size()
+        torch.distributed.all_gather_object(gathered, predictions)
+        torch.distributed.all_gather_object(gathered_indices, batch_indices)
+        torch.distributed.barrier()
+        if not trainer.is_global_zero:
+            return
+        predictions = sum(gathered, [])
+        batch_indices = sum(gathered_indices, [])
+        batch_indices = list(chain.from_iterable(batch_indices))
+        outputs = defaultdict(list)
+        # Iterate through batches
+        for batch_predictions in predictions:
+            for i in range(len(batch_predictions["fname"])):
+                fname = batch_predictions["fname"][i]
+                slice_num = int(batch_predictions["slice_num"][i])
+                output = batch_predictions["output"][i:i+1]
+                outputs[fname].append((slice_num, output))
+
+        # Sort slices and stack them into volumes (sorted by temporal frame)
+        for fname in outputs:
+            outputs[fname] = np.concatenate(
+                [out.cpu() for _, out in sorted(outputs[fname])])
+
+        # Save as .npy
+        save_reconstructions_npy(outputs, self.output_dir / "reconstructions")
+        print(f"Done! Reconstructions saved to {self.output_dir / 'reconstructions'}")
+
 
 def get_model_init_arg_overrides():
     """Returns a dict of model.init_args overrides set on the CLI only."""

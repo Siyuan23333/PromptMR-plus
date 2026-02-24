@@ -87,6 +87,26 @@ def save_reconstructions_mp(reconstructions: Dict[str, np.ndarray], out_dir: Pat
         pool.starmap(save_single_reconstruction, args)
 
 
+def save_reconstructions_npy(reconstructions: Dict[str, np.ndarray], out_dir: Path):
+    """
+    Save reconstruction images as .npy files.
+
+    Args:
+        reconstructions: A dictionary mapping input filenames (without extension)
+            to corresponding reconstructions as numpy arrays.
+        out_dir: Path to the output directory where the reconstructions should
+            be saved.
+    """
+    out_dir.mkdir(exist_ok=True, parents=True)
+    for fname, recons in reconstructions.items():
+        # Ensure fname ends with .npy
+        if not fname.endswith('.npy'):
+            fname = fname + '.npy'
+        file_path = out_dir / fname
+        file_path.parent.mkdir(exist_ok=True, parents=True)
+        np.save(str(file_path), recons)
+
+
 def save_reconstructions(reconstructions: Dict[str, np.ndarray], num_slc_dict, out_dir: Path):
     """
     Save reconstruction images.

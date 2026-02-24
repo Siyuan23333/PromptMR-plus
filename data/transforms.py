@@ -264,6 +264,8 @@ class PromptMRSample(NamedTuple):
         mask_type: The type of mask used.
         num_t: number of temporal frames in the original volume. Only used for CmrxRecon data.
         num_slc: number of slices in the original volume. Only used for CmrxRecon data.
+        sens_maps: Optional precomputed coil sensitivity maps. If provided, the model
+            will use these instead of estimating sensitivity maps internally.
     """
 
     masked_kspace: torch.Tensor
@@ -277,6 +279,7 @@ class PromptMRSample(NamedTuple):
     mask_type: str
     num_t: int
     num_slc: int
+    sens_maps: Optional[torch.Tensor] = None
     
 class CmrxReconDataTransform:
     """
@@ -638,7 +641,95 @@ class CalgaryCampinasDataTransform:
             crop_size=crop_size,
             mask_type=mask_type,
             num_t = -1,
-            num_slc = -1
+            num_slc = -1,
+        )
+
+        return sample
+
+
+class CineNpyDataTransform:
+    """
+    Data Transformer for cine MRI data stored as .npy files with
+    precomputed masks and sensitivity maps.
+    """
+
+    def __init__(self, num_adj_slices: int = 1):
+        """
+        Args:
+            num_adj_slices: Number of adjacent temporal frames loaded per sample.
+        """
+        self.num_adj_slices = num_adj_slices
+        # Set mask_func to None so worker_init_fn in data_module doesn't error
+        self.mask_func = None
+
+    def __call__(
+        self,
+        kspace: np.ndarray,
+        mask: np.ndarray,
+        sens_maps_np: np.ndarray,
+        fname: str,
+        slice_num: int,
+        num_t: int,
+    ) -> PromptMRSample:
+        """
+        Args:
+            kspace: Fully-sampled k-space, shape [adj*C, H, W] complex.
+            mask: Sampling mask, shape [adj, H, W] float/bool.
+            sens_maps_np: Coil sensitivity maps, shape [adj*C, H, W] complex.
+            fname: File name (subject id).
+            slice_num: Temporal frame index.
+            num_t: Total number of temporal frames.
+
+        Returns:
+            A PromptMRSample with masked k-space, mask, target, and
+            precomputed sensitivity maps.
+        """
+        num_adj = self.num_adj_slices
+        num_coils = kspace.shape[0] // num_adj
+
+        # Convert kspace to tensor: [adj*C, H, W, 2]
+        kspace_torch = to_tensor(kspace)
+
+        # Prepare mask: [adj, H, W] -> repeat for coils -> [adj*C, H, W, 1]
+        mask_expanded = np.repeat(mask, num_coils, axis=0)  # [adj*C, H, W]
+        mask_torch = torch.from_numpy(mask_expanded.astype(np.float32)).unsqueeze(-1)  # [adj*C, H, W, 1]
+
+        # Apply mask to get undersampled k-space
+        masked_kspace = kspace_torch * mask_torch
+
+        # Convert sensitivity maps to tensor: [adj*C, H, W, 2]
+        sens_maps_torch = to_tensor(sens_maps_np)
+
+        # Normalize sensitivity maps: divide by RSS across coils per adj frame
+        # Reshape to [adj, C, H, W, 2], compute RSS over C, reshape back
+        sens_reshaped = sens_maps_torch.view(num_adj, num_coils, *sens_maps_torch.shape[1:])
+        rss_norm = rss_complex(sens_reshaped, dim=1).unsqueeze(1).unsqueeze(-1)  # [adj, 1, H, W, 1]
+        rss_norm = rss_norm.clamp(min=1e-8)
+        sens_reshaped = sens_reshaped / rss_norm
+        sens_maps_torch = sens_reshaped.view(num_adj * num_coils, *sens_maps_torch.shape[1:])
+
+        # Compute target: RSS of IFFT(fully-sampled kspace) for center frame
+        center = num_adj // 2
+        center_kspace = kspace_torch[center * num_coils:(center + 1) * num_coils]  # [C, H, W, 2]
+        center_images = ifft2c(center_kspace)  # [C, H, W, 2]
+        target = rss_complex(center_images, dim=0)  # [H, W]
+        max_value = target.max().item()
+
+        crop_size = (kspace.shape[-2], kspace.shape[-1])  # (H, W)
+
+        sample = PromptMRSample(
+            masked_kspace=masked_kspace,
+            mask=mask_torch.to(torch.bool),
+            num_low_frequencies=0,
+            target=target,
+            fname=fname,
+            slice_num=slice_num,
+            max_value=max_value,
+            crop_size=crop_size,
+            mask_type='cine_npy',
+            num_t=num_t,
+            num_slc=-1,
+            sens_maps=sens_maps_torch,
         )
 
         return sample

@@ -365,6 +365,90 @@ class InferenceDataModule(L.LightningDataModule):
         return self._create_data_loader(self.slice_dataset, self.test_transform, data_path=self.data_path)
 
 
+#########################################################################################################
+# Cine NPY DataModule (precomputed mask and sensitivity maps)
+#########################################################################################################
 
 
+class CineNpyDataModule(L.LightningDataModule):
+    """
+    DataModule for cine MRI data stored as .npy files with precomputed
+    masks and sensitivity maps.
+    """
+
+    def __init__(
+        self,
+        ksp_dir: str,
+        mask_dir: str,
+        sense_dir: str,
+        split_json: str,
+        train_transform: Callable,
+        val_transform: Callable,
+        num_adj_slices: int = 5,
+        batch_size: int = 1,
+        num_workers: int = 4,
+        distributed_sampler: bool = False,
+    ):
+        super().__init__()
+        self.ksp_dir = ksp_dir
+        self.mask_dir = mask_dir
+        self.sense_dir = sense_dir
+        self.split_json = split_json
+        self.train_transform = train_transform
+        self.val_transform = val_transform
+        self.num_adj_slices = num_adj_slices
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.distributed_sampler = distributed_sampler
+
+    def _create_dataset(self, split, transform):
+        from data import CineNpySliceDataset
+        return CineNpySliceDataset(
+            ksp_dir=self.ksp_dir,
+            mask_dir=self.mask_dir,
+            sense_dir=self.sense_dir,
+            split_json=self.split_json,
+            split=split,
+            transform=transform,
+            num_adj_slices=self.num_adj_slices,
+        )
+
+    def train_dataloader(self):
+        dataset = self._create_dataset("train", self.train_transform)
+        sampler = None
+        if self.distributed_sampler:
+            sampler = torch.utils.data.DistributedSampler(dataset)
+        return torch.utils.data.DataLoader(
+            dataset=dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            sampler=sampler,
+            shuffle=(sampler is None),
+        )
+
+    def val_dataloader(self):
+        dataset = self._create_dataset("val", self.val_transform)
+        sampler = None
+        if self.distributed_sampler:
+            sampler = VolumeSampler(dataset, shuffle=False)
+        return torch.utils.data.DataLoader(
+            dataset=dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            sampler=sampler,
+            shuffle=False,
+        )
+
+    def predict_dataloader(self):
+        dataset = self._create_dataset("val", self.val_transform)
+        sampler = None
+        if self.distributed_sampler:
+            sampler = VolumeSampler(dataset, shuffle=False)
+        return torch.utils.data.DataLoader(
+            dataset=dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            sampler=sampler,
+            shuffle=False,
+        )
 
