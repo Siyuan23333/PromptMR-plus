@@ -39,6 +39,7 @@ data:
 # dataset specific settings
 trainer:
   strategy: ddp_find_unused_parameters_true
+  gradient_clip_val: 0.01
   devices: 2
   num_nodes: 1
   max_epochs: 12
