@@ -1,0 +1,6 @@
+models/__pycache__/
+mri_utils/__pycache__/
+pl_modules/__pycache__/
+data/__pycache__/
+exp/
+logs/

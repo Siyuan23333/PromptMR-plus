@@ -1,10 +1,10 @@
 data:
   class_path: pl_modules.CineNpyDataModule
   init_args:
-    ksp_dir: /path/to/ksp_dir        # TODO: set to your k-space directory
-    mask_dir: /path/to/mask_dir       # TODO: set to your mask directory
-    sense_dir: /path/to/sense_dir     # TODO: set to your sensitivity map directory
-    split_json: /path/to/split.json   # TODO: set to your split JSON file
+    ksp_dir: /gpfs/scrubbed/hanruish/cine_recon/datasets/cmr2025/training/FullySampled        # TODO: set to your k-space directory
+    mask_dir: /gpfs/scrubbed/hanruish/cine_recon/datasets/cmr2025/training/Mask_Radial8       # TODO: set to your mask directory
+    sense_dir: /gpfs/scrubbed/hanruish/cine_recon/datasets/cmr2025/training/SenseMaps     # TODO: set to your sensitivity map directory
+    split_json: /gpfs/scrubbed/hanruish/cine_recon/codes/baseline/split.json   # TODO: set to your split JSON file
     train_transform:
       class_path: data.CineNpyDataTransform
       init_args:
@@ -20,7 +20,7 @@ data:
 # dataset specific settings
 trainer:
   strategy: ddp
-  devices: 4
+  devices: 2
   num_nodes: 1
   max_epochs: 12
   logger:
