@@ -699,6 +699,18 @@ class CineNpyDataTransform:
         Returns:
             A PromptMRSample with masked k-space, mask, target, sensitivity maps, etc.
         """
+        # --- Validate raw arrays for NaN / Inf ---
+        if np.isnan(kspace).any() or np.isinf(kspace).any():
+            raise ValueError(
+                f"NaN or Inf detected in k-space for {fname}, slice {slice_num}. "
+                "Please check the source .npy file."
+            )
+        if np.isnan(sens_map).any() or np.isinf(sens_map).any():
+            raise ValueError(
+                f"NaN or Inf detected in sensitivity maps for {fname}, slice {slice_num}. "
+                "Please check the source .npy file."
+            )
+
         # --- Compute target from the center frame of fully-sampled k-space ---
         num_adj = self.num_adj_slices
         C = kspace.shape[0] // num_adj          # coils per temporal frame
@@ -709,6 +721,13 @@ class CineNpyDataTransform:
         coil_images = ifft2c(center_kspace_torch)               # (C, H, W, 2)
         target_torch = rss_complex(coil_images, dim=0)          # (H, W)
         max_value = target_torch.max().item()
+
+        if max_value < 1e-9:
+            import warnings
+            warnings.warn(
+                f"Near-zero max_value ({max_value}) for {fname}, slice {slice_num}. "
+                "This frame may be empty or nearly empty, which can cause NaN in SSIM loss."
+            )
 
         # --- Convert arrays to tensors (ensure float32) ---
         kspace_torch   = to_tensor(kspace).float()      # (num_adj*C, H, W, 2)
