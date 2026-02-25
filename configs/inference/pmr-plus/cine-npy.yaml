@@ -17,7 +17,7 @@ data:
         mask_type: kt_radial
         num_low_frequencies: 24
     num_adj_slices: *num_adj_slices
-    batch_size: 1
+    batch_size: 32
     distributed_sampler: true
 
 # dataset specific settings
@@ -25,7 +25,7 @@ seed_everything: 42
 trainer:
   accelerator: gpu
   strategy: ddp
-  devices: 4
+  devices: 2
   num_nodes: 1
   logger: false
   callbacks:
