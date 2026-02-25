@@ -214,6 +214,9 @@ class KspaceACSExtractor:
             mask_type = mask_type[0] # assume the same type in a batch
             mask_type = 'cartesian' if mask_type in ['uniform', 'kt_uniform', 'kt_random'] else mask_type
             if mask_type == 'kt_radial':  # cmrxrecon24 pseudo radial
+                # convert to scalar int for use as slice index (assume same value across batch)
+                if isinstance(num_low_frequencies, torch.Tensor):
+                    num_low_frequencies = int(num_low_frequencies.flatten()[0])
                 mask_low = torch.zeros_like(mask)
                 b, adj_nc, h, w, two = mask.shape
                 h_left = h//2 - num_low_frequencies//2

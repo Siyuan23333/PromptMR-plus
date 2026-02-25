@@ -18,7 +18,7 @@ trainer:
       init_args:
         monitor: validation_loss
         mode: min 
-        save_top_k: 0 # -1 to save all checkpoints, 5 to save the top 5 checkpoints
+        save_top_k: -1 # -1 to save all checkpoints, 5 to save the top 5 checkpoints
         save_last: true # always save the last checkpoint
         verbose: true # print checkpoint information
     # - 
