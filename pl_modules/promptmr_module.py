@@ -212,20 +212,21 @@ class PromptMrModule(MriModule):
         loss = self.loss(
             output.unsqueeze(1), target.unsqueeze(1), data_range=batch.max_value
         )
-        self.log("train_loss", loss, prog_bar=True)
 
         # --- DEBUG: log loss value ---
         logger.info(f"{_tag} loss={loss.item():.6e}")
 
-        ##! raise error if loss is nan
+        ##! skip batch if loss is nan
         if torch.isnan(loss):
-            logger.error(f"{_tag} NaN loss detected! Dumping details:")
-            logger.error(f"  output: range=[{output.min():.4e}, {output.max():.4e}] "
-                         f"nan={torch.isnan(output).any()} inf={torch.isinf(output).any()}")
-            logger.error(f"  target: range=[{target.min():.4e}, {target.max():.4e}] "
-                         f"nan={torch.isnan(target).any()} inf={torch.isinf(target).any()}")
-            logger.error(f"  data_range: {batch.max_value}")
-            raise ValueError(f'nan loss on {batch.fname} of slice {batch.slice_num}')
+            logger.warning(f"{_tag} NaN loss detected — skipping batch. Details:")
+            logger.warning(f"  output: range=[{output.min():.4e}, {output.max():.4e}] "
+                           f"nan={torch.isnan(output).any()} inf={torch.isinf(output).any()}")
+            logger.warning(f"  target: range=[{target.min():.4e}, {target.max():.4e}] "
+                           f"nan={torch.isnan(target).any()} inf={torch.isinf(target).any()}")
+            logger.warning(f"  data_range: {batch.max_value}")
+            return None
+
+        self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def on_after_backward(self):
