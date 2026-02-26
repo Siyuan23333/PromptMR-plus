@@ -2,8 +2,8 @@ data:
   class_path: pl_modules.CineNpyDataModule
   init_args:
     ksp_dir: /gpfs/scrubbed/hanruish/cine_recon/datasets/cmr2025/training/FullySampled        # TODO: set to your k-space directory
-    mask_dir: /gpfs/scrubbed/hanruish/cine_recon/datasets/cmr2025/training/Mask_Radial16       # TODO: set to your mask directory
-    split_json: /gpfs/scrubbed/hanruish/cine_recon/codes/baseline/split.json   # TODO: set to your split JSON file
+    mask_dir: /gpfs/scrubbed/hanruish/cine_recon/datasets/cmr2025/training/Mask_Radial8       # TODO: set to your mask directory
+    split_json: /gpfs/scrubbed/hanruish/cine_recon/codes/baseline/split.json   # TODO: set to your split JSON file (val split used for inference)
     train_transform:
       class_path: data.CineNpyDataTransform
       init_args:
@@ -21,21 +21,20 @@ data:
     distributed_sampler: true
 
 # dataset specific settings
+seed_everything: 42
 trainer:
+  accelerator: gpu
   strategy: ddp
   devices: 1
   num_nodes: 1
-  max_epochs: 12
-  logger:
-    class_path: lightning.pytorch.loggers.WandbLogger
-    init_args:
-      save_dir: exp/radial16
-      tags: [radial16]
-      name: radial16
+  logger: false
+  callbacks:
+    -
+      class_path: __main__.NpyCustomWriter
+      init_args:
+        output_dir: /gpfs/scrubbed/hanruish/cine_recon/results/PromptMR-plus/Radial8  # TODO: set to your desired output directory
+        write_interval: batch_and_epoch
 model:
   class_path: pl_modules.PromptMrModule
-  init_args:
-    lr: 0.0004
-    lr_step_size: 11
 
-ckpt_path: /gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/exp/radial16/deep_recon/jcrr2dkb/checkpoints/epoch=4-step=10980.ckpt # add the path to the checkpoint if you want to resume training
+ckpt_path: /gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/exp/radial8/deep_recon/krrgmjfb/checkpoints/epoch=11-step=26352.ckpt  # TODO: set to your trained checkpoint
