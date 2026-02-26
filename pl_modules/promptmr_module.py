@@ -230,7 +230,16 @@ class PromptMrModule(MriModule):
         return loss
 
     def on_after_backward(self):
-        if self.global_step % self.trainer.log_every_n_steps ==0:
+        # Zero out NaN/Inf gradients to prevent weight corruption
+        nan_grad_count = 0
+        for p in self.promptmr.parameters():
+            if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
+                nan_grad_count += 1
+                p.grad.zero_()
+        if nan_grad_count > 0:
+            logger.warning(f"[step={self.global_step}] Zeroed NaN/Inf gradients in {nan_grad_count} parameter(s)")
+
+        if self.global_step % self.trainer.log_every_n_steps == 0:
             grad_norm = torch.nn.utils.get_total_norm(
                 [p.grad for p in self.promptmr.parameters() if p.grad is not None]
             )
