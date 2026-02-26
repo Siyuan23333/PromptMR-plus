@@ -38,4 +38,4 @@ model:
     lr: 0.0004
     lr_step_size: 11
 
-ckpt_path: /gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/exp/radial16/deep_recon/h9okvbk1/checkpoints/last.ckpt # add the path to the checkpoint if you want to resume training
+ckpt_path: /gpfs/scrubbed/hanruish/cine_recon/codes/baseline/PromptMR-plus/exp/radial16/deep_recon/mrqiu8pj/checkpoints/epoch=2-step=6588.ckpt # add the path to the checkpoint if you want to resume training
