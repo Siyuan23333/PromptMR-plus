@@ -2,10 +2,11 @@
 Standalone evaluation script for computing SSIM, PSNR, and NMSE metrics
 by comparing model inference reconstructions against ground truth.
 
-Ground truth is computed from fully-sampled k-space data via Root Sum of
-Squares (RSS) combination across coils, or loaded directly from the
-dataset HDF5 files (e.g., FastMRI provides pre-computed RSS targets under
-the key "reconstruction_rss").
+Ground truth can be:
+  1. Loaded directly from HDF5 files (e.g., FastMRI "reconstruction_rss").
+  2. Computed on-the-fly from fully-sampled k-space via RSS combination.
+  3. Computed on-the-fly from fully-sampled k-space + precomputed sensitivity
+     maps via SENSE-style coil combination (sens_reduce).
 
 Usage examples:
 
@@ -22,12 +23,20 @@ Usage examples:
       --target-key reconstruction_rss \\
       --center-crop
 
-  # Compute ground truth on-the-fly from fully-sampled k-space
+  # Compute ground truth on-the-fly from fully-sampled k-space (RSS)
   python evaluate.py \\
       --predictions-dir _predict/fastmri-knee/test-plus/reconstructions \\
       --targets-dir /path/to/fastMRI/knee_multicoil/multicoil_val \\
       --target-key kspace \\
       --compute-gt-from-kspace
+
+  # Compute ground truth using precomputed sensitivity maps (SENSE)
+  python evaluate.py \\
+      --predictions-dir _predict/cine/reconstructions \\
+      --targets-dir /path/to/cine/kspace_dir \\
+      --sens-maps-dir /path/to/cine/sens_maps_dir \\
+      --compute-gt-from-kspace \\
+      --file-format npy
 
   # Compare .npy reconstructions against .npy ground truth
   python evaluate.py \\
@@ -140,6 +149,61 @@ def rss_from_kspace(kspace: np.ndarray) -> np.ndarray:
     raise ValueError(f"Unexpected kspace shape: {kspace.shape}")
 
 
+def sens_reduce_from_kspace(
+    kspace: np.ndarray,
+    sens_maps: np.ndarray,
+) -> np.ndarray:
+    """Compute ground truth from fully-sampled k-space using sensitivity maps.
+
+    This mirrors the model's coil-combination approach (SENSE-style):
+      1. IFFT per-coil k-space to image domain.
+      2. Multiply each coil image by the conjugate of its sensitivity map.
+      3. Sum across coils to get a single combined complex image.
+      4. Take the magnitude as ground truth.
+
+    This corresponds to ``sens_reduce`` in ``mri_utils/coil_combine.py``.
+
+    Args:
+        kspace: Fully-sampled complex k-space.
+            - Single frame: [num_coils, H, W] (complex64/128)
+            - Volume/temporal: [T, num_coils, H, W] (complex64/128)
+            - Real/imag last dim: [..., H, W, 2] (real float)
+        sens_maps: Complex sensitivity maps, same shape as kspace.
+            - Single frame: [num_coils, H, W] (complex64/128)
+            - Volume/temporal: [T, num_coils, H, W] (complex64/128)
+            - Real/imag last dim: [..., H, W, 2] (real float)
+
+    Returns:
+        Magnitude image(s): [H, W] (single frame) or [T, H, W] (volume).
+    """
+    # Handle real/imag last-dim representation
+    if np.isrealobj(kspace) and kspace.shape[-1] == 2:
+        kspace = kspace[..., 0] + 1j * kspace[..., 1]
+    if np.isrealobj(sens_maps) and sens_maps.shape[-1] == 2:
+        sens_maps = sens_maps[..., 0] + 1j * sens_maps[..., 1]
+
+    if kspace.ndim == 3:
+        # Single frame: [C, H, W]
+        images = np.fft.ifftshift(
+            np.fft.ifft2(np.fft.ifftshift(kspace, axes=(-2, -1)), norm="ortho"),
+            axes=(-2, -1),
+        )
+        # SENSE combine: sum_c( image_c * conj(sens_c) )
+        combined = np.sum(images * np.conj(sens_maps), axis=0)  # [H, W] complex
+        return np.abs(combined)
+
+    if kspace.ndim == 4:
+        # Volume: [T, C, H, W]
+        images = np.fft.ifftshift(
+            np.fft.ifft2(np.fft.ifftshift(kspace, axes=(-2, -1)), norm="ortho"),
+            axes=(-2, -1),
+        )
+        combined = np.sum(images * np.conj(sens_maps), axis=1)  # [T, H, W] complex
+        return np.abs(combined)
+
+    raise ValueError(f"Unexpected kspace shape: {kspace.shape}")
+
+
 def center_crop(image: np.ndarray, target_shape: tuple) -> np.ndarray:
     """Center-crop an image (or volume) to the target spatial dimensions.
 
@@ -168,7 +232,12 @@ def load_h5_reconstruction(filepath: Path, key: str = "reconstruction") -> np.nd
         return np.array(hf[key])
 
 
-def load_h5_target(filepath: Path, key: str, compute_from_kspace: bool = False) -> np.ndarray:
+def load_h5_target(
+    filepath: Path,
+    key: str,
+    compute_from_kspace: bool = False,
+    sens_maps: np.ndarray = None,
+) -> np.ndarray:
     """Load ground truth from an HDF5 dataset file.
 
     Args:
@@ -176,12 +245,18 @@ def load_h5_target(filepath: Path, key: str, compute_from_kspace: bool = False) 
         key: Dataset key inside the HDF5 file (e.g. "reconstruction_rss",
              "reconstruction_esc", or "kspace").
         compute_from_kspace: If True, interpret *key* as k-space data and
-            compute RSS ground truth on-the-fly.
+            compute ground truth on-the-fly.
+        sens_maps: Optional precomputed sensitivity maps (complex, same spatial
+            layout as kspace). When provided together with compute_from_kspace,
+            uses SENSE-style coil combination instead of RSS.
     """
     with h5py.File(filepath, "r") as hf:
         data = np.array(hf[key])
         if compute_from_kspace:
-            data = rss_from_kspace(data)
+            if sens_maps is not None:
+                data = sens_reduce_from_kspace(data, sens_maps)
+            else:
+                data = rss_from_kspace(data)
         return data
 
 
@@ -233,11 +308,10 @@ def evaluate_volume(
 def run_evaluation(args):
     predictions_dir = Path(args.predictions_dir)
     targets_dir = Path(args.targets_dir)
+    sens_maps_dir = Path(args.sens_maps_dir) if args.sens_maps_dir else None
 
-    if args.file_format == "h5":
-        pred_files = sorted(predictions_dir.glob("**/*.h5"))
-    else:
-        pred_files = sorted(predictions_dir.glob("**/*.npy"))
+    ext = ".h5" if args.file_format == "h5" else ".npy"
+    pred_files = sorted(predictions_dir.glob(f"**/*{ext}"))
 
     if len(pred_files) == 0:
         raise FileNotFoundError(
@@ -251,10 +325,7 @@ def run_evaluation(args):
     for pred_path in pred_files:
         # Derive the corresponding target file name
         rel = pred_path.relative_to(predictions_dir)
-        if args.file_format == "h5":
-            target_path = targets_dir / rel
-        else:
-            target_path = targets_dir / rel
+        target_path = targets_dir / rel
 
         if not target_path.exists():
             print(f"WARNING: target not found for {rel}, skipping.")
@@ -266,15 +337,37 @@ def run_evaluation(args):
         else:
             pred = load_npy(pred_path)
 
-        # Load target
+        # Optionally load precomputed sensitivity maps
+        sens_maps = None
+        if sens_maps_dir is not None and args.compute_gt_from_kspace:
+            sens_path = sens_maps_dir / rel
+            if sens_path.exists():
+                if args.file_format == "h5":
+                    with h5py.File(sens_path, "r") as hf:
+                        sens_key = args.sens_maps_key
+                        sens_maps = np.array(hf[sens_key])
+                else:
+                    sens_maps = np.load(sens_path)
+            else:
+                print(f"WARNING: sensitivity maps not found for {rel}, falling back to RSS.")
+
+        # Load target (with optional sens-map coil combination)
         if args.file_format == "h5":
             target = load_h5_target(
                 target_path,
                 key=args.target_key,
                 compute_from_kspace=args.compute_gt_from_kspace,
+                sens_maps=sens_maps,
             )
         else:
-            target = load_npy(target_path)
+            kspace_or_target = load_npy(target_path)
+            if args.compute_gt_from_kspace:
+                if sens_maps is not None:
+                    target = sens_reduce_from_kspace(kspace_or_target, sens_maps)
+                else:
+                    target = rss_from_kspace(kspace_or_target)
+            else:
+                target = kspace_or_target
 
         # Evaluate
         vol_metrics = evaluate_volume(pred, target, do_center_crop=args.center_crop)
@@ -342,8 +435,24 @@ def main():
         "--compute-gt-from-kspace",
         action="store_true",
         default=False,
-        help="Compute RSS ground truth on-the-fly from fully-sampled k-space "
-             "(requires --target-key pointing to k-space data).",
+        help="Compute ground truth on-the-fly from fully-sampled k-space "
+             "(requires --target-key pointing to k-space data). Uses RSS by "
+             "default, or SENSE combination when --sens-maps-dir is provided.",
+    )
+    parser.add_argument(
+        "--sens-maps-dir",
+        type=str,
+        default=None,
+        help="Directory containing precomputed sensitivity maps (same file "
+             "names as targets). When provided with --compute-gt-from-kspace, "
+             "uses SENSE coil combination instead of RSS.",
+    )
+    parser.add_argument(
+        "--sens-maps-key",
+        type=str,
+        default="sens_maps",
+        help="HDF5 key for sensitivity maps (default: 'sens_maps'). "
+             "Only used when --sens-maps-dir points to HDF5 files.",
     )
     parser.add_argument(
         "--center-crop",
