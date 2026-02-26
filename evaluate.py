@@ -43,6 +43,15 @@ Usage examples:
       --predictions-dir _predict/cine/reconstructions \\
       --targets-dir /path/to/cine/ground_truth \\
       --file-format npy
+
+  # Save computed ground truth (and cropped predictions) for visualization
+  python evaluate.py \\
+      --predictions-dir _predict/cine/reconstructions \\
+      --targets-dir /path/to/cine/kspace_dir \\
+      --sens-maps-dir /path/to/cine/sens_maps_dir \\
+      --compute-gt-from-kspace \\
+      --file-format npy \\
+      --save-gt-dir _eval_output/ground_truth
 """
 
 import argparse
@@ -305,10 +314,21 @@ def evaluate_volume(
     }
 
 
+def _save_array(filepath: Path, data: np.ndarray, file_format: str):
+    """Save a numpy array to disk in the requested format."""
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+    if file_format == "npy":
+        np.save(filepath, data)
+    else:
+        with h5py.File(filepath, "w") as hf:
+            hf.create_dataset("data", data=data)
+
+
 def run_evaluation(args):
     predictions_dir = Path(args.predictions_dir)
     targets_dir = Path(args.targets_dir)
     sens_maps_dir = Path(args.sens_maps_dir) if args.sens_maps_dir else None
+    save_gt_dir = Path(args.save_gt_dir) if args.save_gt_dir else None
 
     ext = ".h5" if args.file_format == "h5" else ".npy"
     pred_files = sorted(predictions_dir.glob(f"**/*{ext}"))
@@ -369,13 +389,31 @@ def run_evaluation(args):
             else:
                 target = kspace_or_target
 
-        # Evaluate
+        # Evaluate (may center-crop pred & target internally)
         vol_metrics = evaluate_volume(pred, target, do_center_crop=args.center_crop)
         metrics_per_volume[str(rel)] = vol_metrics
 
         for k in ("nmse", "psnr", "ssim"):
             agg[k] += vol_metrics[k]
         num_volumes += 1
+
+        # Save ground truth (and cropped predictions) for later visualization
+        if save_gt_dir is not None:
+            # Re-apply the same center-crop so saved arrays match what was evaluated
+            if args.center_crop:
+                if pred.ndim == 2:
+                    pred = pred[np.newaxis, ...]
+                if target.ndim == 2:
+                    target = target[np.newaxis, ...]
+                min_h = min(pred.shape[-2], target.shape[-2])
+                min_w = min(pred.shape[-1], target.shape[-1])
+                pred = center_crop(pred, (min_h, min_w))
+                target = center_crop(target, (min_h, min_w))
+                pred = np.squeeze(pred)
+                target = np.squeeze(target)
+
+            _save_array(save_gt_dir / "ground_truth" / rel, target, args.file_format)
+            _save_array(save_gt_dir / "predictions" / rel, pred, args.file_format)
 
     if num_volumes == 0:
         print("No volumes evaluated. Check your paths and file names.")
@@ -395,6 +433,10 @@ def run_evaluation(args):
           f"{agg['psnr']/num_volumes:>10.4f} "
           f"{agg['ssim']/num_volumes:>10.6f}")
     print(f"{'='*70}\n")
+
+    if save_gt_dir is not None:
+        print(f"Saved ground truth to: {save_gt_dir / 'ground_truth'}")
+        print(f"Saved predictions to:  {save_gt_dir / 'predictions'}")
 
     return {k: v / num_volumes for k, v in agg.items()}
 
@@ -453,6 +495,14 @@ def main():
         default="sens_maps",
         help="HDF5 key for sensitivity maps (default: 'sens_maps'). "
              "Only used when --sens-maps-dir points to HDF5 files.",
+    )
+    parser.add_argument(
+        "--save-gt-dir",
+        type=str,
+        default=None,
+        help="Directory to save computed ground truth and (cropped) predictions "
+             "for later visualization. Creates ground_truth/ and predictions/ "
+             "subdirectories with matching filenames.",
     )
     parser.add_argument(
         "--center-crop",
