@@ -434,9 +434,12 @@ class PromptMR(nn.Module):
                 logger.info(f"[PromptMR.forward] cascade {ci}: img_pred abs range="
                              f"[{img_pred.abs().min():.4e}, {img_pred.abs().max():.4e}]")
 
-        # get central slice of rss as final output
+        # get central slice as final output
         img_pred = torch.chunk(img_pred, self.num_adj_slices, dim=1)[self.center_slice]
         sens_maps = torch.chunk(sens_maps, self.num_adj_slices, dim=1)[self.center_slice]
+        # complex coil-combined image: [bs, 1, H, W, 2] -> [bs, H, W, 2]
+        img_pred_complex = img_pred.squeeze(1)
+        # magnitude via RSS: [bs, H, W]
         img_pred = rss(complex_abs(complex_mul(img_pred, sens_maps)), dim=1)
 
         # --- DEBUG: check final output ---
@@ -452,6 +455,7 @@ class PromptMR(nn.Module):
 
         return {
             'img_pred': img_pred,
+            'img_pred_complex': img_pred_complex,
             'img_zf': img_zf,
             'sens_maps': sens_maps
         }
