@@ -201,10 +201,14 @@ class PromptMrModule(MriModule):
                            precomputed_sens_maps=precomputed_sens)
         output = output_dict['img_pred']
 
-        # --- DEBUG: check model output ---
-        logger.info(f"{_tag} img_pred range=[{output.min():.4e}, {output.max():.4e}] "
-                     f"has_nan={torch.isnan(output).any().item()} "
-                     f"has_inf={torch.isinf(output).any().item()}")
+        # Skip batch if model output contains NaN or Inf — these produce
+        # valid-looking loss (e.g. SSIM=1) but NaN gradients that corrupt weights.
+        if not torch.isfinite(output).all():
+            logger.warning(f"{_tag} Non-finite model output detected — skipping batch. "
+                           f"range=[{output.min():.4e}, {output.max():.4e}] "
+                           f"nan={torch.isnan(output).any().item()} "
+                           f"inf={torch.isinf(output).any().item()}")
+            return None
 
         target, output = transforms.center_crop_to_smallest(
             batch.target, output)
@@ -213,32 +217,14 @@ class PromptMrModule(MriModule):
             output.unsqueeze(1), target.unsqueeze(1), data_range=batch.max_value
         )
 
-        # --- DEBUG: log loss value ---
-        logger.info(f"{_tag} loss={loss.item():.6e}")
-
-        ##! skip batch if loss is nan
-        if torch.isnan(loss):
-            logger.warning(f"{_tag} NaN loss detected — skipping batch. Details:")
-            logger.warning(f"  output: range=[{output.min():.4e}, {output.max():.4e}] "
-                           f"nan={torch.isnan(output).any()} inf={torch.isinf(output).any()}")
-            logger.warning(f"  target: range=[{target.min():.4e}, {target.max():.4e}] "
-                           f"nan={torch.isnan(target).any()} inf={torch.isinf(target).any()}")
-            logger.warning(f"  data_range: {batch.max_value}")
+        if not torch.isfinite(loss):
+            logger.warning(f"{_tag} Non-finite loss ({loss.item()}) — skipping batch.")
             return None
 
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def on_after_backward(self):
-        # Zero out NaN/Inf gradients to prevent weight corruption
-        nan_grad_count = 0
-        for p in self.promptmr.parameters():
-            if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
-                nan_grad_count += 1
-                p.grad.zero_()
-        if nan_grad_count > 0:
-            logger.warning(f"[step={self.global_step}] Zeroed NaN/Inf gradients in {nan_grad_count} parameter(s)")
-
         if self.global_step % self.trainer.log_every_n_steps == 0:
             grad_norm = torch.nn.utils.get_total_norm(
                 [p.grad for p in self.promptmr.parameters() if p.grad is not None]
