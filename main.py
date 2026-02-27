@@ -211,6 +211,7 @@ class CustomWriter(BasePredictionWriter):
         batch_indices = sum(gathered_indices, [])
         batch_indices = list(chain.from_iterable(batch_indices))
         outputs = defaultdict(list)
+        outputs_complex = defaultdict(list)
         num_slc_dict = {} # for reshape
         # Iterate through batches
         for batch_predictions in predictions:
@@ -219,19 +220,25 @@ class CustomWriter(BasePredictionWriter):
                 slice_num = int(batch_predictions["slice_num"][i])
                 output = batch_predictions["output"][i:i+1]
                 outputs[fname].append((slice_num, output))
+                output_complex = batch_predictions["output_complex"][i:i+1]
+                outputs_complex[fname].append((slice_num, output_complex))
                 # if num_slc_list[fname] exist, assign
                 num_slc = batch_predictions["num_slc"][i].numpy()
                 if fname not in num_slc_dict and num_slc!=-1:
                     num_slc_dict[fname] = batch_predictions["num_slc"][i]
-        
+
         # Sort slices and stack them into volumes
         for fname in outputs:
             outputs[fname] = np.concatenate(
                 [out.cpu() for _, out in sorted(outputs[fname])])
-    
-        # # Save the reconstructions
+            outputs_complex[fname] = np.concatenate(
+                [out.cpu() for _, out in sorted(outputs_complex[fname])])
+
+        # Save the reconstructions
         save_reconstructions(outputs, num_slc_dict, self.output_dir / "reconstructions")
+        save_reconstructions_npy(outputs_complex, self.output_dir / "reconstructions_complex")
         print(f"Done! Reconstructions saved to {self.output_dir / 'reconstructions'}")
+        print(f"Complex predictions saved to {self.output_dir / 'reconstructions_complex'}")
 
 
 class NpyCustomWriter(BasePredictionWriter):
@@ -259,6 +266,7 @@ class NpyCustomWriter(BasePredictionWriter):
         batch_indices = sum(gathered_indices, [])
         batch_indices = list(chain.from_iterable(batch_indices))
         outputs = defaultdict(list)
+        outputs_complex = defaultdict(list)
         # Iterate through batches
         for batch_predictions in predictions:
             for i in range(len(batch_predictions["fname"])):
@@ -266,15 +274,21 @@ class NpyCustomWriter(BasePredictionWriter):
                 slice_num = int(batch_predictions["slice_num"][i])
                 output = batch_predictions["output"][i:i+1]
                 outputs[fname].append((slice_num, output))
+                output_complex = batch_predictions["output_complex"][i:i+1]
+                outputs_complex[fname].append((slice_num, output_complex))
 
         # Sort slices and stack them into volumes (sorted by temporal frame)
         for fname in outputs:
             outputs[fname] = np.concatenate(
                 [out.cpu() for _, out in sorted(outputs[fname])])
+            outputs_complex[fname] = np.concatenate(
+                [out.cpu() for _, out in sorted(outputs_complex[fname])])
 
         # Save as .npy
         save_reconstructions_npy(outputs, self.output_dir / "reconstructions")
+        save_reconstructions_npy(outputs_complex, self.output_dir / "reconstructions_complex")
         print(f"Done! Reconstructions saved to {self.output_dir / 'reconstructions'}")
+        print(f"Complex predictions saved to {self.output_dir / 'reconstructions_complex'}")
 
 
 def get_model_init_arg_overrides():
