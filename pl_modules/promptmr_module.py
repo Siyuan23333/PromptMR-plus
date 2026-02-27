@@ -268,17 +268,23 @@ class PromptMrModule(MriModule):
                            precomputed_sens_maps=precomputed_sens)
         output = output_dict['img_pred']
 
-        crop_size = batch.crop_size 
+        crop_size = batch.crop_size
         crop_size = [crop_size[0][0], crop_size[1][0]] # if batch_size>1
         # detect FLAIR 203
         if output.shape[-1] < crop_size[1]:
             crop_size = (output.shape[-1], output.shape[-1])
         output = transforms.center_crop(output, crop_size)
 
+        # complex prediction: [B, 1, H, W, 2] -> [B, 2, H, W]
+        img_pred_complex = output_dict['img_pred_complex']
+        img_pred_complex = img_pred_complex.squeeze(1).permute(0, 3, 1, 2)
+        img_pred_complex = transforms.center_crop(img_pred_complex, crop_size)
+
         num_slc = batch.num_slc
         return {
-            'output': output.cpu(), 
-            'slice_num': batch.slice_num, 
+            'output': output.cpu(),
+            'output_complex': img_pred_complex.cpu(),
+            'slice_num': batch.slice_num,
             'fname': batch.fname,
             'num_slc':  num_slc
         }

@@ -437,6 +437,8 @@ class PromptMR(nn.Module):
         # get central slice of rss as final output
         img_pred = torch.chunk(img_pred, self.num_adj_slices, dim=1)[self.center_slice]
         sens_maps = torch.chunk(sens_maps, self.num_adj_slices, dim=1)[self.center_slice]
+        # keep the complex image before magnitude conversion: [B, 1, H, W, 2]
+        img_pred_complex = img_pred.clone()
         img_pred = rss(complex_abs(complex_mul(img_pred, sens_maps)), dim=1)
 
         # --- DEBUG: check final output ---
@@ -452,6 +454,7 @@ class PromptMR(nn.Module):
 
         return {
             'img_pred': img_pred,
+            'img_pred_complex': img_pred_complex,
             'img_zf': img_zf,
             'sens_maps': sens_maps
         }
